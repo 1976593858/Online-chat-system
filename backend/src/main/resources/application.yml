@@ -1,0 +1,8 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: online-chat
+
+# WebSocket 走同一端口，不需要额外配置

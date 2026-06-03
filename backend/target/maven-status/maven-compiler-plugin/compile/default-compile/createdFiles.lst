@@ -1,0 +1,4 @@
+com\chat\config\WebSocketConfig.class
+com\chat\controller\GroupMessageController.class
+com\chat\OnlineChatApplication.class
+com\chat\websocket\GroupChatWebSocket.class
