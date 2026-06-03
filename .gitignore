@@ -10,3 +10,4 @@ frontend/dist/
 *.log
 *.tmp
 .DS_Store
+docs/work-division.md
