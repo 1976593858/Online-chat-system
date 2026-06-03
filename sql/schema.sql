@@ -5,6 +5,7 @@ CREATE DATABASE IF NOT EXISTS online_chat
 USE online_chat;
 
 DROP TABLE IF EXISTS conversation;
+DROP TABLE IF EXISTS private_message;
 DROP TABLE IF EXISTS friend_request;
 DROP TABLE IF EXISTS friendship;
 DROP TABLE IF EXISTS friend_group;
@@ -84,6 +85,22 @@ CREATE TABLE friend_request (
     CONSTRAINT fk_friend_request_sender FOREIGN KEY (sender_id) REFERENCES `user` (id),
     CONSTRAINT fk_friend_request_receiver FOREIGN KEY (receiver_id) REFERENCES `user` (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='好友申请表';
+
+CREATE TABLE private_message (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    from_user_id BIGINT UNSIGNED NOT NULL COMMENT '发送者ID',
+    to_user_id BIGINT UNSIGNED NOT NULL COMMENT '接收者ID',
+    content VARCHAR(2000) NOT NULL COMMENT '消息内容',
+    message_type VARCHAR(16) NOT NULL DEFAULT 'TEXT' COMMENT '消息类型：TEXT、IMAGE、VOICE、FILE',
+    read_at DATETIME NULL COMMENT '已读时间（接收方读取后写入）',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删除，1已删除',
+    PRIMARY KEY (id),
+    KEY idx_private_message_pair_time (from_user_id, to_user_id, created_at),
+    KEY idx_private_message_to_read (to_user_id, read_at, created_at),
+    CONSTRAINT fk_private_message_from_user FOREIGN KEY (from_user_id) REFERENCES `user` (id),
+    CONSTRAINT fk_private_message_to_user FOREIGN KEY (to_user_id) REFERENCES `user` (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='私聊消息表';
 
 CREATE TABLE conversation (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '会话ID',

@@ -20,7 +20,12 @@
       </div>
 
       <div class="stack">
-        <article v-for="conversation in conversationStore.page.records" :key="conversation.id" class="conversation-card">
+        <article
+          v-for="conversation in conversationStore.page.records"
+          :key="conversation.id"
+          class="conversation-card conversation-clickable"
+          @click="openChat(conversation)"
+        >
           <el-badge :value="conversation.unreadCount" :hidden="!conversation.unreadCount">
             <el-avatar :src="conversation.targetAvatar" :size="52">{{ firstLetter(conversation.targetNickname || conversation.targetUsername) }}</el-avatar>
           </el-badge>
@@ -39,7 +44,7 @@
 
           <div class="conversation-actions">
             <div class="muted">{{ conversation.lastMessageAt }}</div>
-            <el-button v-if="conversation.unreadCount" link @click="conversationStore.markRead(conversation.id)">标为已读</el-button>
+            <el-button v-if="conversation.unreadCount" link @click.stop="conversationStore.markRead(conversation.id)">标为已读</el-button>
           </div>
         </article>
 
@@ -84,6 +89,11 @@ function logout() {
   authStore.logout()
   router.push('/login')
 }
+
+function openChat(conversation) {
+  if (!conversation?.targetUserId) return
+  router.push({ name: 'chat', params: { targetUserId: conversation.targetUserId } })
+}
 </script>
 
 <style scoped>
@@ -97,6 +107,10 @@ function logout() {
   justify-items: end;
   gap: 8px;
   white-space: nowrap;
+}
+
+.conversation-clickable {
+  cursor: pointer;
 }
 
 :deep(.el-pagination) {

@@ -36,6 +36,12 @@ public class ConversationController {
         return Result.success(conversationService.recent(currentUser.id(), pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
+    @GetMapping("/private/{targetUserId}")
+    @Operation(summary = "打开或创建私聊会话", description = "用于进入与指定用户的私聊页面，返回当前用户侧会话信息")
+    public Result<ConversationVO> openPrivate(@Parameter(description = "目标用户ID") @PathVariable Long targetUserId) {
+        return Result.success(conversationService.openPrivate(currentUser.id(), targetUserId));
+    }
+
     @PutMapping("/{conversationId}/read")
     @Operation(summary = "标记会话已读", description = "将当前用户指定会话的未读数清零")
     public Result<Void> markRead(@Parameter(description = "会话ID") @PathVariable Long conversationId) {

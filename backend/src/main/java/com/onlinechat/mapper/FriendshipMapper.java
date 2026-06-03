@@ -48,28 +48,28 @@ public interface FriendshipMapper extends BaseMapper<Friendship> {
                                      @Param("groupId") Long groupId,
                                      @Param("keyword") String keyword);
 
-    @Select("""
-            SELECT
-                f.id AS friendshipId,
-                f.friend_id AS friendId,
-                u.username,
-                u.nickname,
-                u.email,
-                u.phone,
-                u.avatar,
-                f.group_id AS groupId,
-                g.name AS groupName,
-                f.remark,
-                f.created_at AS friendSince,
-                u.last_login_at AS lastLoginAt
-            FROM friendship f
-            JOIN `user` u ON u.id = f.friend_id AND u.deleted = 0
-            LEFT JOIN friend_group g ON g.id = f.group_id AND g.deleted = 0
-            WHERE f.user_id = #{userId}
-              AND f.friend_id = #{friendId}
-              AND f.status = 'ACTIVE'
-              AND f.deleted = 0
-            LIMIT 1
-            """)
+    @Select({
+            "SELECT",
+            "  f.id AS friendshipId,",
+            "  f.friend_id AS friendId,",
+            "  u.username,",
+            "  u.nickname,",
+            "  u.email,",
+            "  u.phone,",
+            "  u.avatar,",
+            "  f.group_id AS groupId,",
+            "  g.name AS groupName,",
+            "  f.remark,",
+            "  f.created_at AS friendSince,",
+            "  u.last_login_at AS lastLoginAt",
+            "FROM friendship f",
+            "JOIN `user` u ON u.id = f.friend_id AND u.deleted = 0",
+            "LEFT JOIN friend_group g ON g.id = f.group_id AND g.deleted = 0",
+            "WHERE f.user_id = #{userId}",
+            "  AND f.friend_id = #{friendId}",
+            "  AND f.status = 'ACTIVE'",
+            "  AND f.deleted = 0",
+            "LIMIT 1"
+    })
     FriendDetailVO selectFriendDetail(@Param("userId") Long userId, @Param("friendId") Long friendId);
 }

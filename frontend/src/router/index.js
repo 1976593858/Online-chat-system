@@ -3,12 +3,14 @@ import { useAuthStore } from '../stores/auth'
 import LoginView from '../views/LoginView.vue'
 import FriendManagementView from '../views/FriendManagementView.vue'
 import ConversationListView from '../views/ConversationListView.vue'
+import ChatView from '../views/ChatView.vue'
 
 const routes = [
   { path: '/', redirect: '/friends' },
   { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
   { path: '/friends', name: 'friends', component: FriendManagementView },
-  { path: '/conversations', name: 'conversations', component: ConversationListView }
+  { path: '/conversations', name: 'conversations', component: ConversationListView },
+  { path: '/chat/:targetUserId', name: 'chat', component: ChatView }
 ]
 
 const router = createRouter({

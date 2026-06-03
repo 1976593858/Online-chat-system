@@ -16,6 +16,9 @@ request.interceptors.request.use((config) => {
 
 request.interceptors.response.use(
   (response) => {
+    if (response.config?.responseType && response.config.responseType !== 'json') {
+      return response.data
+    }
     const body = response.data
     if (body && body.code === 0) {
       return body.data

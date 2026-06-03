@@ -7,5 +7,7 @@ public interface ConversationService {
 
     PageResult<ConversationVO> recent(Long ownerId, long pageNo, long pageSize);
 
+    ConversationVO openPrivate(Long ownerId, Long targetUserId);
+
     void markRead(Long ownerId, Long conversationId);
 }

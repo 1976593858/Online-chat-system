@@ -58,4 +58,13 @@ Authorization: Bearer <jwt-token>
 | 方法 | 地址 | 说明 |
 | --- | --- | --- |
 | GET | `/api/conversations/recent?pageNo=1&pageSize=20` | 最近会话，包含最后消息、未读数，按最后消息时间排序 |
+| GET | `/api/conversations/private/{targetUserId}` | 打开/创建与某用户的私聊会话，返回会话信息 |
 | PUT | `/api/conversations/{conversationId}/read` | 标记会话已读 |
+
+## 私聊消息接口
+
+| 方法 | 地址 | 说明 |
+| --- | --- | --- |
+| POST | `/api/messages/private` | 发送私聊消息 |
+| GET | `/api/messages/private/{targetUserId}?pageNo=1&pageSize=20` | 分页查询与某用户的私聊记录（倒序） |
+| GET | `/api/messages/private/{targetUserId}/export` | 导出与某用户的私聊记录（txt 下载） |

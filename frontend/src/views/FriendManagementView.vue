@@ -61,6 +61,7 @@
               <el-table-column label="操作" width="280">
                 <template #default="{ row }">
                   <el-button link @click="openDetail(row.friendId)">详情</el-button>
+                  <el-button link type="primary" @click="openChat(row.friendId)">私聊</el-button>
                   <el-button link @click="promptRemark(row)">备注</el-button>
                   <el-button link @click="openMoveDialog(row)">移动</el-button>
                   <el-button link type="danger" @click="confirmDeleteFriend(row)">删除</el-button>
@@ -382,6 +383,10 @@ async function promptReject(row) {
 function logout() {
   authStore.logout()
   router.push('/login')
+}
+
+function openChat(friendId) {
+  router.push({ name: 'chat', params: { targetUserId: friendId } })
 }
 </script>
 

@@ -34,7 +34,7 @@
     <description>Online chat system backend</description>
 
     <properties>
-        <java.version>17</java.version>
+        <java.version>1.8</java.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <springdoc.version>1.7.0</springdoc.version>
         <jjwt.version>0.11.5</jjwt.version>
