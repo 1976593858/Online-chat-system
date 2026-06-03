@@ -1,12 +1,23 @@
-# 后端
+# ===== 后端 =====
 backend/target/
 backend/.idea/
 backend/*.iml
 
-# 前端
+# ===== 前端 =====
 frontend/node_modules/
 frontend/dist/
 
-# 系统
+# ===== 系统 =====
 .DS_Store
 Thumbs.db
+*.log
+*.tmp
+
+# ===== IDEA 额外文件 =====
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+
+# ===== 文档 =====
+docs/work-division.md
