@@ -1,21 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-<<<<<<< HEAD
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>com.chat</groupId>
-    <artifactId>online-chat-backend</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
-
-=======
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
->>>>>>> 7e08b29b17f4e08a8e3d74e6dcced2130a87cbda
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -23,10 +11,6 @@
         <relativePath/>
     </parent>
 
-<<<<<<< HEAD
-    <properties>
-        <java.version>8</java.version>
-=======
     <groupId>com.onlinechat</groupId>
     <artifactId>online-chat-backend</artifactId>
     <version>1.0.0</version>
@@ -34,11 +18,10 @@
     <description>Online chat system backend</description>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <springdoc.version>1.7.0</springdoc.version>
         <jjwt.version>0.11.5</jjwt.version>
->>>>>>> 7e08b29b17f4e08a8e3d74e6dcced2130a87cbda
     </properties>
 
     <dependencies>
@@ -48,19 +31,15 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-<<<<<<< HEAD
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>1.2.83</version>
-=======
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -95,6 +74,11 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.83</version>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
@@ -103,7 +87,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
->>>>>>> 7e08b29b17f4e08a8e3d74e6dcced2130a87cbda
         </dependency>
     </dependencies>
 
@@ -112,12 +95,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-<<<<<<< HEAD
-            </plugin>
-        </plugins>
-    </build>
-</project>
-=======
                 <configuration>
                     <excludes>
                         <exclude>
@@ -130,4 +107,3 @@
         </plugins>
     </build>
 </project>
->>>>>>> 7e08b29b17f4e08a8e3d74e6dcced2130a87cbda
