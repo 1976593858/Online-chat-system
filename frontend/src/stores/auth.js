@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { fetchCurrentUser, login, register } from '../api/auth'
+import { useWebSocketStore } from './websocket'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -10,11 +11,15 @@ export const useAuthStore = defineStore('auth', {
     async login(payload) {
       const data = await login(payload)
       this.setSession(data)
+      const wsStore = useWebSocketStore()
+      wsStore.connect()
       return data
     },
     async register(payload) {
       const data = await register(payload)
       this.setSession(data)
+      const wsStore = useWebSocketStore()
+      wsStore.connect()
       return data
     },
     async loadCurrentUser() {
@@ -28,6 +33,8 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('user', JSON.stringify(data.user))
     },
     logout() {
+      const wsStore = useWebSocketStore()
+      wsStore.disconnect()
       this.token = ''
       this.user = null
       localStorage.removeItem('token')

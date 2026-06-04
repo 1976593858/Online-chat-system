@@ -29,7 +29,14 @@ request.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
-    const message = error.response?.data?.message || error.message || '网络异常'
+    let message = error.response?.data?.message
+    if (!message) {
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        message = '无法连接服务器，请确认后端服务已启动'
+      } else {
+        message = error.message || '网络异常'
+      }
+    }
     if (status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')

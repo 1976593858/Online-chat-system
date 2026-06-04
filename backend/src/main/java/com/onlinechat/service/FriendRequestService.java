@@ -14,4 +14,6 @@ public interface FriendRequestService {
     void accept(Long receiverId, Long requestId, FriendRequestHandleDTO dto);
 
     void reject(Long receiverId, Long requestId, FriendRequestHandleDTO dto);
+
+    void resend(Long senderId, Long requestId, FriendRequestCreateDTO dto);
 }

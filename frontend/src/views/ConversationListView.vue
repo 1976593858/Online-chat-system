@@ -103,10 +103,16 @@ function openChat(conversation) {
   margin: 0 auto;
 }
 
+.toolbar strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
 .conversation-actions {
   display: grid;
   justify-items: end;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -114,14 +120,29 @@ function openChat(conversation) {
   cursor: pointer;
 }
 
+.conversation-clickable:active {
+  transform: scale(0.993);
+}
+
 :deep(.el-pagination) {
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: 20px;
+}
+
+:deep(.el-empty) {
+  padding: 56px 0;
+}
+
+:deep(.el-empty__description) {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 @media (max-width: 720px) {
   .conversation-card {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 16px;
   }
 
   .conversation-actions {

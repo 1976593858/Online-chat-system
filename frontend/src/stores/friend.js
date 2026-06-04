@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { searchUsers } from '../api/users'
 import { createFriendGroup, deleteFriendGroup, listFriendGroups, updateFriendGroup } from '../api/friendGroups'
 import { deleteFriend, getFriendDetail, listFriends, moveFriendGroup, updateFriendRemark } from '../api/friends'
-import { acceptFriendRequest, createFriendRequest, listFriendRequests, rejectFriendRequest } from '../api/friendRequests'
+import { acceptFriendRequest, createFriendRequest, listFriendRequests, rejectFriendRequest, resendFriendRequest } from '../api/friendRequests'
+import { useWebSocketStore } from './websocket'
+
+let wsHandlerRegistered = false
 
 export const useFriendStore = defineStore('friend', {
   state: () => ({
@@ -15,6 +18,32 @@ export const useFriendStore = defineStore('friend', {
     loading: false
   }),
   actions: {
+    initWSListener() {
+      if (wsHandlerRegistered) return
+      wsHandlerRegistered = true
+      const wsStore = useWebSocketStore()
+      wsStore.addHandler((data) => {
+        if (data.type === 'friend_request_update') {
+          this.handleRequestUpdate(data)
+        }
+      })
+    },
+
+    handleRequestUpdate(data) {
+      const actionLabels = {
+        received: '你收到了一条新的好友申请',
+        accepted: '你的好友申请已被同意',
+        rejected: '你的好友申请已被拒绝'
+      }
+      const label = actionLabels[data.action] || '好友申请状态已更新'
+      ElNotification.info({ title: '好友通知', message: label, duration: 4000 })
+      this.loadRequests()
+      if (data.action === 'accepted') {
+        this.loadFriends()
+        this.loadGroups()
+      }
+    },
+
     async loadGroups() {
       this.groups = await listFriendGroups()
     },
@@ -39,6 +68,11 @@ export const useFriendStore = defineStore('friend', {
     async rejectRequest(requestId, handleReason) {
       await rejectFriendRequest(requestId, { handleReason })
       ElMessage.success('已拒绝好友申请')
+      await this.loadRequests()
+    },
+    async resendRequest(requestId, message) {
+      await resendFriendRequest(requestId, { message })
+      ElMessage.success('好友申请已重新发送')
       await this.loadRequests()
     },
     async createGroup(name) {

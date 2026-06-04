@@ -24,6 +24,7 @@
           </div>
         </div>
         <div class="chat-header-actions">
+          <el-button type="success" :disabled="!conversation" @click="startVoiceCall">📞 语音通话</el-button>
           <el-button :disabled="!conversation" @click="downloadHistory">导出记录</el-button>
           <el-button type="primary" :loading="loadingConversation" @click="reload">刷新</el-button>
         </div>
@@ -76,12 +77,14 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
+import { useVoiceCallStore } from '../stores/voiceCall'
 import { markConversationRead } from '../api/conversations'
 import { exportPrivateMessages, fetchPrivateMessages, openPrivateConversation, sendPrivateMessage } from '../api/messages'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const voiceCallStore = useVoiceCallStore()
 
 const targetUserId = computed(() => Number(route.params.targetUserId))
 const conversation = ref(null)
@@ -199,6 +202,12 @@ async function downloadHistory() {
   }
 }
 
+function startVoiceCall() {
+  if (!conversation.value) return
+  const name = conversation.value.targetNickname || conversation.value.targetUsername || `用户 ${targetUserId.value}`
+  voiceCallStore.startCall(targetUserId.value, name)
+}
+
 function logout() {
   authStore.logout()
   router.push('/login')
@@ -209,7 +218,7 @@ function logout() {
 .chat-layout {
   max-width: 1080px;
   margin: 0 auto;
-  border-radius: 26px;
+  border-radius: 30px;
   padding: 0;
   overflow: hidden;
 }
@@ -219,18 +228,22 @@ function logout() {
   justify-content: space-between;
   gap: 14px;
   align-items: center;
-  padding: 18px 20px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--line);
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
 }
 
 .chat-peer {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .chat-peer-name {
   font-weight: 800;
+  font-size: 17px;
 }
 
 .chat-header-actions {
@@ -246,62 +259,97 @@ function logout() {
 }
 
 .history-toolbar {
-  padding: 14px 20px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.25);
 }
 
+/* Message area — extra transparent to show background */
 .message-list {
-  padding: 18px 20px;
+  padding: 20px 24px;
   overflow-y: auto;
   display: grid;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.45);
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .message-row {
   display: flex;
   justify-content: flex-start;
+  animation: msgIn 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .message-row.self {
   justify-content: flex-end;
 }
 
+/* Glass bubbles */
 .message-bubble {
   max-width: min(520px, 78%);
-  padding: 12px 14px;
-  border-radius: 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass-bg-hover);
+  backdrop-filter: var(--blur-light);
+  -webkit-backdrop-filter: var(--blur-light);
   display: grid;
   gap: 6px;
+  box-shadow: var(--shadow-xs);
 }
 
 .message-row.self .message-bubble {
-  background: rgba(14, 124, 123, 0.12);
-  border-color: rgba(14, 124, 123, 0.22);
+  background: rgba(7, 193, 96, 0.15);
+  border-color: rgba(7, 193, 96, 0.25);
 }
 
 .message-meta {
-  font-size: 12px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .message-text {
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.55;
+  font-size: 15px;
 }
 
+/* Input area — glass footer */
 .chat-input {
-  padding: 18px 20px;
+  padding: 18px 24px;
   border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .chat-input-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .chat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .chat-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .message-bubble {
+    max-width: 88%;
+  }
 }
 </style>
 

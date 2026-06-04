@@ -392,16 +392,31 @@ function openChat(friendId) {
 </script>
 
 <style scoped>
-.group-card {
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+.side-panel {
+  min-height: 420px;
 }
 
-.group-card:hover,
+.group-card {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-light);
+  -webkit-backdrop-filter: var(--blur-light);
+  transition: all var(--transition-smooth);
+}
+
+.group-card:hover {
+  border-color: rgba(7, 193, 96, 0.30);
+  background: var(--glass-bg-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
 .group-card.active {
   border-color: var(--brand);
-  transform: translateY(-1px);
+  background: var(--brand-subtle);
+  box-shadow: 0 0 0 4px var(--brand-glow);
 }
 
 .group-row {
@@ -409,7 +424,13 @@ function openChat(friendId) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.group-row .el-tag {
+  font-weight: 700;
+  border-radius: 999px;
 }
 
 .group-actions {
@@ -417,17 +438,27 @@ function openChat(friendId) {
   align-items: center;
   gap: 6px;
   min-height: 24px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .friend-name {
   margin-left: 10px;
   margin-right: 8px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 :deep(.el-pagination) {
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+:deep(.el-table__body tr:last-child td) {
+  border-bottom: none;
+}
+
+@media (max-width: 860px) {
+  .side-panel {
+    min-height: auto;
+  }
 }
 </style>

@@ -5,6 +5,7 @@ import FriendManagementView from '../views/FriendManagementView.vue'
 import ConversationListView from '../views/ConversationListView.vue'
 import ChatView from '../views/ChatView.vue'
 import ChatHistoryView from '../views/ChatHistoryView.vue'
+import GroupChat from '../views/group/GroupChat.vue'
 
 const routes = [
   { path: '/', redirect: '/friends' },
@@ -12,7 +13,8 @@ const routes = [
   { path: '/friends', name: 'friends', component: FriendManagementView },
   { path: '/conversations', name: 'conversations', component: ConversationListView },
   { path: '/chat/:targetUserId', name: 'chat', component: ChatView },
-  { path: '/chat-history', name: 'chatHistory', component: ChatHistoryView }
+  { path: '/chat-history', name: 'chatHistory', component: ChatHistoryView },
+  { path: '/group/:groupId', name: 'group', component: GroupChat, props: true }
 ]
 
 const router = createRouter({

@@ -69,4 +69,13 @@ public class FriendRequestController {
         friendRequestService.reject(currentUser.id(), requestId, dto);
         return Result.success();
     }
+
+    @PostMapping("/{requestId}/resend")
+    @Operation(summary = "重新发送好友申请", description = "已拒绝的申请可重新发送，更新申请时间和备注")
+    public Result<Void> resend(
+            @Parameter(description = "好友申请ID") @PathVariable Long requestId,
+            @RequestBody(required = false) FriendRequestCreateDTO dto) {
+        friendRequestService.resend(currentUser.id(), requestId, dto == null ? new FriendRequestCreateDTO() : dto);
+        return Result.success();
+    }
 }
