@@ -13,6 +13,7 @@ import com.onlinechat.exception.BusinessException;
 import com.onlinechat.mapper.ConversationMapper;
 import com.onlinechat.mapper.PrivateMessageMapper;
 import com.onlinechat.mapper.UserMapper;
+import com.onlinechat.service.ChatHistoryService;
 import com.onlinechat.service.FriendService;
 import com.onlinechat.service.PrivateMessageService;
 import com.onlinechat.vo.PrivateMessageVO;
@@ -38,6 +39,7 @@ public class PrivateMessageServiceImpl implements PrivateMessageService {
     private final ConversationMapper conversationMapper;
     private final UserMapper userMapper;
     private final FriendService friendService;
+    private final ChatHistoryService chatHistoryService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -58,6 +60,8 @@ public class PrivateMessageServiceImpl implements PrivateMessageService {
         message.setMessageType(normalizeMessageType(dto.getMessageType()));
         message.setCreatedAt(now);
         privateMessageMapper.insert(message);
+
+        chatHistoryService.syncMessage(message);
 
         upsertConversation(fromUserId, dto.getToUserId(), message, now, 0);
         upsertConversation(dto.getToUserId(), fromUserId, message, now, 1);
