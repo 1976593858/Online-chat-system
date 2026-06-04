@@ -9,6 +9,7 @@
       <nav class="nav-links">
         <RouterLink class="nav-link" to="/friends">好友</RouterLink>
         <RouterLink class="nav-link" to="/conversations">消息列表</RouterLink>
+        <RouterLink class="nav-link" to="/chat-history">搜索</RouterLink>
         <el-button plain @click="logout">退出</el-button>
       </nav>
     </header>
