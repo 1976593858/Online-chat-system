@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/chat-history")
-@Tag(name = "聊天记录查询", description = "基于 SQLite FTS5 的全文检索")
+@Tag(name = "聊天记录查询", description = "基于 MySQL 全文检索的聊天记录搜索")
 public class ChatHistoryController {
 
     private final ChatHistoryService chatHistoryService;
@@ -36,12 +35,5 @@ public class ChatHistoryController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") long pageNo,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") long pageSize) {
         return Result.success(chatHistoryService.search(currentUser.id(), keyword, userId, fromDate, toDate, pageNo, pageSize));
-    }
-
-    @PostMapping("/sync")
-    @Operation(summary = "同步已有消息到 SQLite（管理员）")
-    public Result<String> sync() {
-        long count = chatHistoryService.syncExistingMessages();
-        return Result.success("同步完成，共 " + count + " 条");
     }
 }

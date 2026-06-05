@@ -105,6 +105,8 @@ CREATE TABLE private_message (
     CONSTRAINT fk_private_message_to_user FOREIGN KEY (to_user_id) REFERENCES `user` (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='私聊消息表';
 
+ALTER TABLE private_message ADD FULLTEXT INDEX ft_private_message_content (content) WITH PARSER ngram;
+
 CREATE TABLE conversation (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '会话ID',
     owner_id BIGINT UNSIGNED NOT NULL COMMENT '会话所属用户ID',

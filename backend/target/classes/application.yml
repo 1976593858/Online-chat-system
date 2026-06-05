@@ -30,6 +30,3 @@ jwt:
   issuer: online-chat
   secret: online-chat-system-jwt-secret-key-for-hs256
   expiration-millis: 86400000
-
-sqlite:
-  database-path: ./data/chat_history.db

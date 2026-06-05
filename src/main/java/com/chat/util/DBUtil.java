@@ -6,11 +6,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class DBUtil {
-    private static final String URL = "jdbc:sqlite:chat.db";
+    private static final String URL = "jdbc:mysql://localhost:3306/online_chat?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true";
+    private static final String USER = "root";
+    private static final String PASSWORD = "123456";
 
     public static Connection getConnection() throws Exception {
-        Class.forName("org.sqlite.JDBC");
-        return DriverManager.getConnection(URL);
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
     public static void close(Connection conn, PreparedStatement pstmt, ResultSet rs) {
