@@ -4,12 +4,32 @@ import { useAuthStore } from './auth'
 import { useWebSocketStore } from './websocket'
 import { ElMessage } from 'element-plus'
 
+/* 高质量音频采集约束 — 回声消除 / 降噪 / 自动增益 */
+const AUDIO_CONSTRAINTS = {
+  audio: {
+    echoCancellation: { ideal: true },
+    noiseSuppression: { ideal: true },
+    autoGainControl: { ideal: true },
+    sampleRate: { ideal: 48000 },
+    channelCount: { ideal: 1 },
+    latency: { ideal: 0.005 }
+  }
+}
+
+/* 多组 STUN 服务器，提升 NAT 穿透成功率 */
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
-  ]
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' }
+  ],
+  iceCandidatePoolSize: 2
 }
+
+/* 连接建立超时（毫秒） */
+const CONNECTION_TIMEOUT_MS = 30000
 
 export const useVoiceCallStore = defineStore('voiceCall', () => {
   const authStore = useAuthStore()
@@ -21,12 +41,14 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   const errorMsg = ref('')
   const startTime = ref(null)
   const elapsed = ref(0)
+  const micMuted = ref(false)
 
   let peerConnection = null
   let localStream = null
   let remoteAudio = null
   let elapsedTimer = null
   let pendingOffer = null
+  let connectionTimeout = null
 
   const myId = () => String(authStore.user?.id || '')
   const myName = () => authStore.user?.nickname || authStore.user?.username || ''
@@ -84,6 +106,22 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     }
   }
 
+  function startConnectionTimeout() {
+    clearConnectionTimeout()
+    connectionTimeout = setTimeout(() => {
+      if (callState.value === 'calling') {
+        stopCall('通话连接超时，请检查网络后重试')
+      }
+    }, CONNECTION_TIMEOUT_MS)
+  }
+
+  function clearConnectionTimeout() {
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout)
+      connectionTimeout = null
+    }
+  }
+
   async function startCall(toUserId, toUsername) {
     if (callState.value !== 'idle') return
 
@@ -94,7 +132,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
       setupSignaling()
       callState.value = 'calling'
 
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      localStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
       peerConnection = new RTCPeerConnection(ICE_SERVERS)
 
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream))
@@ -123,12 +161,15 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
           const state = peerConnection.connectionState
           if (state === 'connected' && callState.value === 'calling') {
             callState.value = 'connected'
+            clearConnectionTimeout()
             startTimer()
           } else if (state === 'failed' || state === 'disconnected') {
             stopCall('连接断开')
           }
         }
       }
+
+      startConnectionTimeout()
 
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
@@ -156,7 +197,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     try {
       callState.value = 'calling'
 
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      localStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
       peerConnection = new RTCPeerConnection(ICE_SERVERS)
 
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream))
@@ -185,12 +226,15 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
           const s = peerConnection.connectionState
           if (s === 'connected') {
             callState.value = 'connected'
+            clearConnectionTimeout()
             startTimer()
           } else if (s === 'failed' || s === 'disconnected') {
             stopCall('连接断开')
           }
         }
       }
+
+      startConnectionTimeout()
 
       if (pendingOffer) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer))
@@ -234,6 +278,15 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     stopCall()
   }
 
+  function toggleMute() {
+    micMuted.value = !micMuted.value
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = !micMuted.value
+      })
+    }
+  }
+
   function stopCall(reason) {
     if (reason) {
       errorMsg.value = reason
@@ -258,7 +311,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
 
   function cleanup() {
     stopTimer()
-    teardownSignaling()
+    clearConnectionTimeout()
     if (peerConnection) {
       peerConnection.onicecandidate = null
       peerConnection.ontrack = null
@@ -298,8 +351,8 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   }
 
   return {
-    callState, remoteUserId, remoteUsername, errorMsg, elapsed,
-    startCall, acceptCall, rejectCall, endCall, stopCall, resetCall,
+    callState, remoteUserId, remoteUsername, errorMsg, elapsed, micMuted,
+    startCall, acceptCall, rejectCall, endCall, stopCall, resetCall, toggleMute,
     formatTime, setupSignaling
   }
 })

@@ -35,6 +35,9 @@
           <div class="call-name">{{ remoteUsername }}</div>
           <div class="call-status timer">{{ formatTime(elapsed) }}</div>
           <div class="call-actions">
+            <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
+              {{ micMuted ? '🔇' : '🎤' }}
+            </button>
             <button class="btn-hangup" @click="endCall">
               <span class="btn-icon">📞</span> 挂断
             </button>
@@ -60,8 +63,8 @@ import { useVoiceCallStore } from '../stores/voiceCall'
 import { storeToRefs } from 'pinia'
 
 const store = useVoiceCallStore()
-const { callState, remoteUsername, errorMsg, elapsed } = storeToRefs(store)
-const { acceptCall, rejectCall, endCall, resetCall, formatTime } = store
+const { callState, remoteUsername, errorMsg, elapsed, micMuted } = storeToRefs(store)
+const { acceptCall, rejectCall, endCall, resetCall, formatTime, toggleMute } = store
 
 function firstLetter(name) {
   return name ? String(name).slice(0, 1).toUpperCase() : '?'
@@ -225,6 +228,16 @@ button:active { transform: scale(0.94); }
   -webkit-backdrop-filter: var(--blur-subtle);
 }
 .btn-close:hover { background: rgba(0, 0, 0, 0.10); }
+
+.btn-mute {
+  width: 50px; height: 50px; border-radius: 50%; padding: 0;
+  background: rgba(0,0,0,0.05); color: var(--muted); font-size: 20px;
+  backdrop-filter: var(--blur-subtle); -webkit-backdrop-filter: var(--blur-subtle);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex;
+  align-items: center; justify-content: center;
+}
+.btn-mute:hover { background: rgba(0,0,0,0.10); color: var(--ink); }
+.btn-mute.muted { background: rgba(255,59,48,0.12); color: var(--danger); }
 
 .btn-icon { font-size: 20px; }
 

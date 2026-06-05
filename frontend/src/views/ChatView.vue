@@ -216,11 +216,14 @@ function logout() {
 
 <style scoped>
 .chat-layout {
-  max-width: 1080px;
+  max-width: 960px;
   margin: 0 auto;
   border-radius: 30px;
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 160px);
 }
 
 .chat-header {
@@ -228,11 +231,12 @@ function logout() {
   justify-content: space-between;
   gap: 14px;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--line);
   background: var(--glass-bg);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
+  flex-shrink: 0;
 }
 
 .chat-peer {
@@ -253,23 +257,28 @@ function logout() {
 }
 
 .chat-body {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: min(66vh, 720px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .history-toolbar {
-  padding: 14px 24px;
+  padding: 8px 24px;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
 }
 
-/* Message area — extra transparent to show background */
+/* Message area */
 .message-list {
-  padding: 20px 24px;
+  flex: 1;
+  min-height: 0;
+  padding: 10px 20px;
   overflow-y: auto;
-  display: grid;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   background: rgba(255, 255, 255, 0.18);
 }
 
@@ -280,7 +289,7 @@ function logout() {
 }
 
 @keyframes msgIn {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -288,17 +297,18 @@ function logout() {
   justify-content: flex-end;
 }
 
-/* Glass bubbles */
+/* Message bubble — shrink to content for short messages, cap long ones */
 .message-bubble {
-  max-width: min(520px, 78%);
-  padding: 14px 16px;
-  border-radius: 20px;
+  display: inline-flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: min(480px, 70%);
+  padding: 8px 14px;
+  border-radius: 18px;
   border: 1px solid var(--line);
   background: var(--glass-bg-hover);
   backdrop-filter: var(--blur-light);
   -webkit-backdrop-filter: var(--blur-light);
-  display: grid;
-  gap: 6px;
   box-shadow: var(--shadow-xs);
 }
 
@@ -310,36 +320,49 @@ function logout() {
 .message-meta {
   font-size: 11px;
   color: var(--muted);
+  margin-bottom: 1px;
 }
 
 .message-text {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.55;
+  line-height: 1.45;
   font-size: 15px;
 }
 
-/* Input area — glass footer */
+/* Input area */
 .chat-input {
-  padding: 18px 24px;
+  padding: 12px 24px 16px;
   border-top: 1px solid var(--line);
   background: var(--glass-bg);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
-  display: grid;
-  gap: 12px;
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.chat-input :deep(.el-textarea) {
+  flex: 1;
 }
 
 .chat-input-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
+  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
+  .chat-layout {
+    height: calc(100vh - 100px);
+    border-radius: 16px;
+  }
+
   .chat-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
+    padding: 12px 16px;
   }
 
   .chat-header-actions {
@@ -348,7 +371,17 @@ function logout() {
   }
 
   .message-bubble {
-    max-width: 88%;
+    max-width: 85%;
+    padding: 7px 12px;
+  }
+
+  .message-list {
+    padding: 8px 10px;
+    gap: 2px;
+  }
+
+  .chat-input {
+    padding: 10px 12px 12px;
   }
 }
 </style>

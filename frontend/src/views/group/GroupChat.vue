@@ -114,27 +114,27 @@ function scrollBottom() {
   z-index: 1;
 }
 
-/* Message area — very transparent, colorful background bleeds through */
+/* Message area */
 .chat-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 12px 20px;
   background: rgba(255, 255, 255, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 4px;
 }
 
 .msg-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  animation: msgIn 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+  gap: 8px;
+  animation: msgIn 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 @keyframes msgIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .msg-row.mine {
@@ -162,11 +162,12 @@ function scrollBottom() {
   box-shadow: 0 2px 8px var(--accent-glow);
 }
 
-/* Glass chat bubbles */
+/* Glass chat bubbles — shrink to content, cap long messages */
 .bubble {
+  width: fit-content;
   max-width: 60%;
-  padding: 13px 18px;
-  border-radius: 22px;
+  padding: 8px 14px;
+  border-radius: 18px;
   background: var(--glass-bg-hover);
   backdrop-filter: var(--blur-light);
   -webkit-backdrop-filter: var(--blur-light);
@@ -175,7 +176,7 @@ function scrollBottom() {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 15px;
-  line-height: 1.55;
+  line-height: 1.45;
   transition: all var(--transition-fast);
 }
 
@@ -249,8 +250,8 @@ function scrollBottom() {
 
 @media (max-width: 640px) {
   .chat-body {
-    padding: 14px 16px;
-    gap: 10px;
+    padding: 8px 12px;
+    gap: 3px;
   }
 
   .chat-input {
@@ -259,7 +260,16 @@ function scrollBottom() {
   }
 
   .bubble {
-    max-width: 78%;
+    max-width: 82%;
+    padding: 7px 12px;
+    font-size: 14px;
+    border-radius: 14px;
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
   }
 }
 </style>
