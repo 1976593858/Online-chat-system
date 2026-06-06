@@ -1,6 +1,7 @@
 <template>
   <Teleport to="body">
     <transition name="call-fade">
+      <div v-if="callState !== 'idle' || groupCallActive" class="voice-call-wrapper">
       <!-- 1-on-1 Call -->
       <div v-if="callState !== 'idle'" class="voice-call-overlay">
         <div v-if="callState === 'calling'" class="call-panel">
@@ -97,6 +98,7 @@
             </button>
           </div>
         </div>
+      </div>
       </div>
     </transition>
   </Teleport>
