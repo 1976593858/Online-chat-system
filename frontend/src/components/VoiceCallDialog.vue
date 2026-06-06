@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <transition name="call-fade">
+      <!-- 1-on-1 Call -->
       <div v-if="callState !== 'idle'" class="voice-call-overlay">
-        <!-- Calling -->
         <div v-if="callState === 'calling'" class="call-panel">
           <div class="call-avatar">{{ firstLetter(remoteUsername) }}</div>
           <div class="call-name">{{ remoteUsername }}</div>
@@ -14,7 +14,6 @@
           </div>
         </div>
 
-        <!-- Ringing -->
         <div v-else-if="callState === 'ringing'" class="call-panel ringing">
           <div class="call-avatar ringing-avatar">{{ firstLetter(remoteUsername) }}</div>
           <div class="call-name">{{ remoteUsername }}</div>
@@ -29,7 +28,6 @@
           </div>
         </div>
 
-        <!-- Connected -->
         <div v-else-if="callState === 'connected'" class="call-panel connected">
           <div class="call-avatar connected-avatar">{{ firstLetter(remoteUsername) }}</div>
           <div class="call-name">{{ remoteUsername }}</div>
@@ -44,7 +42,6 @@
           </div>
         </div>
 
-        <!-- Ended -->
         <div v-else-if="callState === 'ended'" class="call-panel ended">
           <div class="call-avatar ended-avatar">{{ firstLetter(remoteUsername) }}</div>
           <div class="call-name">{{ remoteUsername }}</div>
@@ -54,28 +51,92 @@
           </div>
         </div>
       </div>
+
+      <!-- Group Call -->
+      <div v-if="groupCallActive" class="voice-call-overlay">
+        <div class="call-panel group-call-panel">
+          <div class="group-call-header">
+            <div class="group-call-icon">👥</div>
+            <div class="call-name">{{ groupCallGroupName }}</div>
+            <div class="call-status">{{ groupCallParticipants.length }} 人在通话</div>
+          </div>
+
+          <div class="group-participants">
+            <div
+              v-for="p in groupCallParticipants"
+              :key="p.userId"
+              class="group-participant-item"
+            >
+              <div class="participant-avatar" :style="participantColor(p.userId)">
+                {{ firstLetter(p.username) }}
+              </div>
+              <div class="participant-info">
+                <span class="participant-name">{{ p.username }}</span>
+                <span class="participant-state" :class="p.state">
+                  {{ p.state === 'connected' ? '通话中' : '连接中…' }}
+                  <span v-if="p.state === 'connected'" class="state-dot connected"></span>
+                  <span v-else class="state-dot connecting"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="call-actions">
+            <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
+              {{ micMuted ? '🔇' : '🎤' }}
+            </button>
+            <button
+              v-if="groupCallInitiator === myId"
+              class="btn-hangup"
+              @click="endGroupCall"
+            >
+              <span>📞</span> 结束通话
+            </button>
+            <button v-else class="btn-hangup" @click="leaveGroupCall">
+              <span>📞</span> 离开
+            </button>
+          </div>
+        </div>
+      </div>
     </transition>
   </Teleport>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useVoiceCallStore } from '../stores/voiceCall'
+import { useAuthStore } from '../stores/auth'
 import { storeToRefs } from 'pinia'
 
 const store = useVoiceCallStore()
-const { callState, remoteUsername, errorMsg, elapsed, micMuted } = storeToRefs(store)
-const { acceptCall, rejectCall, endCall, resetCall, formatTime, toggleMute } = store
+const authStore = useAuthStore()
+const {
+  callState, remoteUsername, errorMsg, elapsed, micMuted,
+  groupCallActive, groupCallGroupName, groupCallParticipants, groupCallInitiator
+} = storeToRefs(store)
+const {
+  acceptCall, rejectCall, endCall, resetCall, formatTime, toggleMute,
+  leaveGroupCall, endGroupCall
+} = store
+
+const myId = computed(() => String(authStore.user?.id || ''))
+
+const participantColors = ['#5E6AD2', '#FF8C42', '#00A8CC', '#1aad5e', '#E84040', '#8C52D2', '#F0A030', '#4A90D9']
 
 function firstLetter(name) {
   return name ? String(name).slice(0, 1).toUpperCase() : '?'
 }
+
+function participantColor(userId) {
+  const color = participantColors[Number(userId) % participantColors.length]
+  return {
+    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+    boxShadow: `0 4px 14px ${color}40`
+  }
+}
 </script>
 
 <style scoped>
-/* ================================================
-   Overlay — deep glass with aurora bleed
-   ================================================ */
-
 .voice-call-overlay {
   position: fixed;
   inset: 0;
@@ -87,10 +148,6 @@ function firstLetter(name) {
   backdrop-filter: saturate(200%) blur(48px);
   -webkit-backdrop-filter: saturate(200%) blur(48px);
 }
-
-/* ================================================
-   Panel — liquid glass card
-   ================================================ */
 
 .call-panel {
   position: relative;
@@ -107,7 +164,6 @@ function firstLetter(name) {
   animation: springIn 0.5s var(--ease-spring) both;
 }
 
-/* Top edge light reflection */
 .call-panel::before {
   content: "";
   position: absolute;
@@ -128,10 +184,96 @@ function firstLetter(name) {
   z-index: 1;
 }
 
-/* ================================================
-   Avatar — bold, ambient glow
-   ================================================ */
+/* Group call panel — wider */
+.group-call-panel {
+  min-width: 400px;
+  max-width: 480px;
+  padding: 40px 48px;
+}
 
+.group-call-header {
+  margin-bottom: 24px;
+}
+
+.group-call-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.group-participants {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.group-participant-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--glass-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border-1);
+}
+
+.participant-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.participant-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.participant-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.participant-state {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.participant-state.connected {
+  color: var(--success);
+}
+
+.state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.state-dot.connected {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+}
+
+.state-dot.connecting {
+  background: var(--text-tertiary);
+  animation: blink 1s ease infinite;
+}
+
+/* Avatar states */
 .call-avatar {
   width: 92px;
   height: 92px;
@@ -148,9 +290,7 @@ function firstLetter(name) {
   box-shadow: 0 12px 36px var(--brand-glow);
 }
 
-.ringing-avatar {
-  animation: ringPulse 1.2s ease infinite;
-}
+.ringing-avatar { animation: ringPulse 1.2s ease infinite; }
 
 .connected-avatar {
   background: linear-gradient(135deg, var(--success) 0%, #28a745 100%);
@@ -161,10 +301,6 @@ function firstLetter(name) {
   background: linear-gradient(135deg, #8e8e93 0%, #636366 100%);
   box-shadow: 0 12px 36px rgba(0,0,0,0.1);
 }
-
-/* ================================================
-   Text
-   ================================================ */
 
 .call-name {
   font-size: 26px;
@@ -192,10 +328,6 @@ function firstLetter(name) {
 }
 
 .ended-text { color: var(--danger); font-weight: 600; }
-
-/* ================================================
-   Buttons — iOS style controls
-   ================================================ */
 
 .call-actions {
   display: flex;
@@ -250,7 +382,6 @@ button:active { transform: scale(0.94); }
 }
 .btn-close:hover { background: rgba(0, 0, 0, 0.10); }
 
-/* Mute button — circular */
 .btn-mute {
   width: 50px;
   height: 50px;
@@ -275,10 +406,6 @@ button:active { transform: scale(0.94); }
   color: var(--danger);
 }
 
-/* ================================================
-   Animations
-   ================================================ */
-
 @keyframes ringPulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(26, 173, 94, 0.5); }
   50%      { transform: scale(1.05); box-shadow: 0 0 0 22px rgba(26, 173, 94, 0); }
@@ -289,7 +416,6 @@ button:active { transform: scale(0.94); }
   50%      { opacity: 0.30; }
 }
 
-/* Transition */
 .call-fade-enter-active, .call-fade-leave-active {
   transition: opacity 0.35s var(--ease-out-expo);
 }
@@ -297,16 +423,17 @@ button:active { transform: scale(0.94); }
   opacity: 0;
 }
 
-/* ================================================
-   Responsive
-   ================================================ */
-
 @media (max-width: 480px) {
   .call-panel {
     padding: 40px 28px;
     border-radius: var(--radius-lg);
     min-width: auto;
     margin: 16px;
+  }
+
+  .group-call-panel {
+    padding: 32px 20px;
+    min-width: auto;
   }
 
   .call-avatar {

@@ -57,7 +57,7 @@
           :style="{ animationDelay: `${i * 0.03}s` }"
         >
           <div class="result-meta">
-            <span class="result-sender">{{ item.fromUsername }}</span>
+            <span class="result-sender">{{ item.fromUserNickname || item.fromUserUsername || '用户 '+item.fromUserId }}</span>
             <span class="result-tag">{{ item.messageType }}</span>
             <span class="result-time muted">{{ item.createdAt }}</span>
           </div>

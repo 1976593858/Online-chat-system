@@ -37,14 +37,21 @@ public class GroupChatWebSocket {
     }
 
     public static boolean isUserInGroup(String userId, String groupId) {
-        if (groupMemberMapper == null) {
-            return true;
-        }
+        if (groupMemberMapper == null) return false;
         try {
             return groupMemberMapper.isMember(Long.valueOf(groupId), Long.valueOf(userId));
         } catch (Exception e) {
-            log.warn("查询群成员失败 groupId={} userId={}", groupId, userId, e);
-            return true;
+            return false;
+        }
+    }
+
+    /** Check if a group member has muted the group */
+    public static boolean isMemberMuted(String userId, String groupId) {
+        if (groupMemberMapper == null) return false;
+        try {
+            return groupMemberMapper.isMuted(Long.valueOf(groupId), Long.valueOf(userId));
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -58,24 +65,50 @@ public class GroupChatWebSocket {
         return onlineMembers;
     }
 
+    /**
+     * Broadcast a message to all online group members, skipping muted members.
+     */
     public static void broadcast(String groupId, String jsonMsg) {
         ONLINE_USERS.forEach((uid, session) -> {
             if (!session.isOpen()) {
                 ONLINE_USERS.remove(uid);
                 return;
             }
-            if (isUserInGroup(uid, groupId)) {
-                try {
-                    session.getBasicRemote().sendText(jsonMsg);
-                } catch (IOException e) {
-                    log.warn("推送失败 userId={}", uid, e);
-                }
+            if (!isUserInGroup(uid, groupId)) return;
+            // Skip muted members for regular messages
+            if (isMemberMuted(uid, groupId)) {
+                log.debug("跳过免打扰成员 userId={} groupId={}", uid, groupId);
+                return;
+            }
+            try {
+                session.getBasicRemote().sendText(jsonMsg);
+            } catch (IOException e) {
+                log.warn("推送失败 userId={}", uid, e);
             }
         });
     }
 
     /**
-     * 向指定用户发送消息（用于语音通话信令转发）
+     * Broadcast to ALL online group members regardless of mute status.
+     * Used for group voice call announcements.
+     */
+    public static void broadcastAll(String groupId, String jsonMsg) {
+        ONLINE_USERS.forEach((uid, session) -> {
+            if (!session.isOpen()) {
+                ONLINE_USERS.remove(uid);
+                return;
+            }
+            if (!isUserInGroup(uid, groupId)) return;
+            try {
+                session.getBasicRemote().sendText(jsonMsg);
+            } catch (IOException e) {
+                log.warn("推送失败 userId={}", uid, e);
+            }
+        });
+    }
+
+    /**
+     * Send a message to a specific user. Returns true if delivered.
      */
     public static boolean sendToUser(String userId, String jsonMsg) {
         Session session = ONLINE_USERS.get(userId);
@@ -114,10 +147,38 @@ public class GroupChatWebSocket {
         try {
             JSONObject msg = JSON.parseObject(message);
             String type = msg.getString("type");
-            String toUserId = msg.getString("toUserId");
 
+            // Group voice call signaling
+            if ("group_call_start".equals(type)) {
+                String groupId = msg.getString("groupId");
+                String callRoomId = msg.getString("callRoomId");
+                msg.put("fromUserId", userId);
+                // Broadcast call start to all online group members (ignoring mute — calls override mute)
+                broadcastAll(groupId, msg.toJSONString());
+                log.info("群语音通话发起 groupId={} callRoomId={} by={}", groupId, callRoomId, userId);
+                return;
+            }
+
+            if ("group_call_join".equals(type)) {
+                String toUserId = msg.getString("toUserId");
+                msg.put("fromUserId", userId);
+                if (toUserId != null) {
+                    sendToUser(toUserId, msg.toJSONString());
+                }
+                return;
+            }
+
+            if ("group_call_leave".equals(type) || "group_call_end".equals(type)) {
+                String groupId = msg.getString("groupId");
+                msg.put("fromUserId", userId);
+                // Notify all online members in the group
+                broadcastAll(groupId, msg.toJSONString());
+                return;
+            }
+
+            // Voice call signaling relay (1-on-1 WebRTC)
+            String toUserId = msg.getString("toUserId");
             if (toUserId != null && !toUserId.isEmpty()) {
-                // 信令消息：转发给目标用户
                 if (!msg.containsKey("fromUserId")) {
                     msg.put("fromUserId", userId);
                 }
@@ -126,7 +187,6 @@ public class GroupChatWebSocket {
                     log.debug("信令消息已转发 type={} {} -> {}", type, userId, toUserId);
                 } else {
                     log.debug("目标用户不在线 type={} {} -> {}", type, userId, toUserId);
-                    // 通知发送方目标用户不在线
                     JSONObject offlineMsg = new JSONObject();
                     offlineMsg.put("type", "call_failed");
                     offlineMsg.put("fromUserId", toUserId);
@@ -134,9 +194,10 @@ public class GroupChatWebSocket {
                     offlineMsg.put("reason", "用户不在线");
                     sendToUser(userId, offlineMsg.toJSONString());
                 }
-            } else {
-                log.debug("未识别的消息类型: {}", type);
+                return;
             }
+
+            log.debug("未识别的消息类型: {}", type);
         } catch (Exception e) {
             log.warn("解析 WebSocket 消息失败 userId={}", userId, e);
         }

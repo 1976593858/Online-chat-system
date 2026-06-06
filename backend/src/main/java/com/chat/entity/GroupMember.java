@@ -15,6 +15,7 @@ public class GroupMember {
     private Long groupId;
     private Long userId;
     private String role;
+    private Integer muted;
     private LocalDateTime joinedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

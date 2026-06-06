@@ -20,6 +20,13 @@
       <div class="groups-head">
         <h2 class="groups-title">群聊</h2>
         <div class="groups-head-actions">
+          <button
+            v-if="pendingInvites.length"
+            class="invite-badge-btn"
+            @click="showInvitesDialog = true"
+          >
+            {{ pendingInvites.length }} 个邀请
+          </button>
           <button class="primary-btn" @click="showCreateDialog = true">创建群聊</button>
           <button class="secondary-btn" @click="showJoinDialog = true">加入群聊</button>
         </div>
@@ -41,6 +48,7 @@
             <div class="group-card-meta muted">
               {{ group.memberCount ?? 0 }} 位成员
               <span v-if="group.announcement"> · {{ group.announcement }}</span>
+              <span v-if="group.inviteCode" class="invite-code-label"> · 码: {{ group.inviteCode }}</span>
             </div>
           </div>
           <div class="group-card-arrow">→</div>
@@ -72,15 +80,72 @@
     </div>
 
     <!-- Join Group Dialog -->
-    <div v-if="showJoinDialog" class="dialog-overlay" @click.self="showJoinDialog = false">
+    <div v-if="showJoinDialog" class="dialog-overlay" @click.self="closeJoinDialog">
       <div class="dialog-card glass-highlight">
         <h3 class="dialog-title">加入群聊</h3>
-        <input v-model="joinGroupId" class="dialog-input" placeholder="输入群聊 ID" @keyup.enter="doJoin" />
+        <input
+          v-model="joinInput"
+          class="dialog-input"
+          placeholder="输入群聊 ID 或邀请码"
+          @keyup.enter="doJoinPreview"
+        />
+
+        <!-- Preview card after input -->
+        <div v-if="previewGroup" class="preview-card glass-highlight">
+          <div class="preview-avatar" :style="groupAvatarStyle(previewGroup)">
+            {{ firstLetter(previewGroup.name) }}
+          </div>
+          <div class="preview-content">
+            <div class="preview-name">{{ previewGroup.name }}</div>
+            <div class="preview-meta muted">{{ previewGroup.memberCount ?? 0 }} 位成员</div>
+            <div v-if="previewGroup.announcement" class="preview-announce muted">{{ previewGroup.announcement }}</div>
+          </div>
+        </div>
+        <div v-if="previewError" class="preview-error">{{ previewError }}</div>
+
         <div class="dialog-actions">
-          <button class="secondary-btn" @click="showJoinDialog = false">取消</button>
-          <button class="primary-btn" :disabled="!joinGroupId.trim() || joining" @click="doJoin">
-            {{ joining ? '加入中…' : '加入' }}
+          <button class="secondary-btn" @click="closeJoinDialog">取消</button>
+          <button
+            v-if="!previewGroup"
+            class="primary-btn"
+            :disabled="!joinInput.trim() || joinPreviewing"
+            @click="doJoinPreview"
+          >
+            {{ joinPreviewing ? '查找中…' : '查找' }}
           </button>
+          <button
+            v-else
+            class="primary-btn"
+            :disabled="joining"
+            @click="doJoin"
+          >
+            {{ joining ? '加入中…' : '加入群聊' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Invites Dialog -->
+    <div v-if="showInvitesDialog" class="dialog-overlay" @click.self="showInvitesDialog = false">
+      <div class="dialog-card glass-highlight" style="max-height: 70vh; overflow-y: auto;">
+        <h3 class="dialog-title">待处理的邀请</h3>
+        <div v-if="pendingInvites.length" class="invites-stack">
+          <div v-for="inv in pendingInvites" :key="inv.id" class="invite-card">
+            <div class="invite-card-info">
+              <div class="invite-group-name">{{ inv.groupName || '群聊 ' + inv.groupId }}</div>
+              <div class="invite-sender muted">
+                来自: {{ inv.senderNickname || inv.senderUsername || '用户 ' + inv.senderId }}
+              </div>
+            </div>
+            <div class="invite-card-actions">
+              <button class="accept-btn" @click="handleAccept(inv.id)">接受</button>
+              <button class="reject-btn" @click="handleReject(inv.id)">拒绝</button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="invites-empty muted">暂无待处理的邀请</div>
+        <div class="dialog-actions">
+          <button class="secondary-btn" @click="showInvitesDialog = false">关闭</button>
         </div>
       </div>
     </div>
@@ -92,7 +157,10 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../../stores/auth'
-import { createGroup, joinGroup, listGroups } from '../../api/groups'
+import {
+  createGroup, joinGroup, listGroups, getGroupPreview,
+  joinByInviteCode, getPendingInvites, acceptInvite, rejectInvite
+} from '../../api/groups'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -102,10 +170,16 @@ const loading = ref(false)
 
 const showCreateDialog = ref(false)
 const showJoinDialog = ref(false)
-const joinGroupId = ref('')
+const showInvitesDialog = ref(false)
+const joinInput = ref('')
 const creating = ref(false)
 const joining = ref(false)
+const joinPreviewing = ref(false)
 const createForm = ref({ name: '', announcement: '' })
+
+const previewGroup = ref(null)
+const previewError = ref('')
+const pendingInvites = ref([])
 
 const avatarColors = ['#5E6AD2', '#FF8C42', '#00A8CC', '#1aad5e', '#E84040', '#8C52D2', '#F0A030', '#4A90D9']
 
@@ -137,6 +211,14 @@ async function loadGroups() {
   }
 }
 
+async function loadPendingInvites() {
+  try {
+    pendingInvites.value = await getPendingInvites()
+  } catch (e) {
+    // silently fail
+  }
+}
+
 async function doCreate() {
   const name = createForm.value.name.trim()
   if (!name) return
@@ -154,15 +236,41 @@ async function doCreate() {
   }
 }
 
+function closeJoinDialog() {
+  showJoinDialog.value = false
+  joinInput.value = ''
+  previewGroup.value = null
+  previewError.value = ''
+}
+
+async function doJoinPreview() {
+  const input = joinInput.value.trim()
+  if (!input) return
+  joinPreviewing.value = true
+  previewGroup.value = null
+  previewError.value = ''
+  try {
+    // Try as numeric ID first, then as invite code
+    const isNumeric = /^\d+$/.test(input)
+    if (isNumeric) {
+      previewGroup.value = await getGroupPreview(Number(input))
+    } else {
+      previewGroup.value = await joinByInviteCode(input)
+    }
+  } catch (e) {
+    previewError.value = e?.message || '未找到群聊，请检查 ID 或邀请码'
+  } finally {
+    joinPreviewing.value = false
+  }
+}
+
 async function doJoin() {
-  const id = joinGroupId.value.trim()
-  if (!id) return
+  if (!previewGroup.value) return
   joining.value = true
   try {
-    await joinGroup(Number(id))
+    await joinGroup(Number(previewGroup.value.id))
     ElMessage.success('已加入群聊')
-    showJoinDialog.value = false
-    joinGroupId.value = ''
+    closeJoinDialog()
     await loadGroups()
   } catch (e) {
     ElMessage.error(e?.message || '加入失败')
@@ -171,8 +279,29 @@ async function doJoin() {
   }
 }
 
+async function handleAccept(inviteId) {
+  try {
+    await acceptInvite(inviteId)
+    ElMessage.success('已加入群聊')
+    await Promise.all([loadPendingInvites(), loadGroups()])
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
+}
+
+async function handleReject(inviteId) {
+  try {
+    await rejectInvite(inviteId)
+    ElMessage.success('已拒绝邀请')
+    await loadPendingInvites()
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
+}
+
 onMounted(() => {
   loadGroups()
+  loadPendingInvites()
 })
 </script>
 
@@ -292,6 +421,31 @@ onMounted(() => {
 .groups-head-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.invite-badge-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-full);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+  animation: pulseBadge 2s ease infinite;
+}
+
+.invite-badge-btn:hover {
+  background: var(--brand);
+  color: #fff;
+}
+
+@keyframes pulseBadge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(26, 173, 94, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(26, 173, 94, 0); }
 }
 
 .primary-btn {
@@ -404,6 +558,11 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.invite-code-label {
+  color: var(--brand);
+  font-weight: 600;
 }
 
 .group-card-arrow {
@@ -525,5 +684,144 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* ================================================
+   Preview
+   ================================================ */
+
+.preview-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border-2);
+}
+
+.preview-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-name {
+  font-weight: 680;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.preview-meta {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.preview-announce {
+  font-size: 12px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.preview-error {
+  font-size: 13px;
+  color: var(--danger);
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ================================================
+   Invites
+   ================================================ */
+
+.invites-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--glass-2);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-md);
+}
+
+.invite-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.invite-group-name {
+  font-weight: 680;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.invite-sender {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.invite-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.accept-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+}
+
+.accept-btn:hover {
+  background: var(--brand-hover);
+}
+
+.reject-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+}
+
+.reject-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(232,64,64,0.06);
+}
+
+.invites-empty {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 13px;
 }
 </style>

@@ -9,6 +9,7 @@ public class GroupVO {
     private Long id;
     private String name;
     private String announcement;
+    private String inviteCode;
     private Long ownerId;
     private String ownerUsername;
     private String ownerNickname;

@@ -1,8 +1,6 @@
 package com.chat.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.chat.entity.GroupInfo;
 import com.chat.vo.GroupVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -15,7 +13,8 @@ import java.util.List;
 public interface GroupInfoMapper extends BaseMapper<GroupInfo> {
 
     @Select({
-            "SELECT gi.id, gi.name, gi.announcement, gi.owner_id AS ownerId,",
+            "SELECT gi.id, gi.name, gi.announcement, gi.invite_code AS inviteCode,",
+            "  gi.owner_id AS ownerId,",
             "  u.username AS ownerUsername, u.nickname AS ownerNickname,",
             "  (SELECT COUNT(*) FROM group_member gm WHERE gm.group_id = gi.id AND gm.deleted = 0) AS memberCount,",
             "  gi.created_at AS createdAt",
@@ -28,7 +27,8 @@ public interface GroupInfoMapper extends BaseMapper<GroupInfo> {
     List<GroupVO> selectUserGroups(@Param("userId") Long userId);
 
     @Select({
-            "SELECT gi.id, gi.name, gi.announcement, gi.owner_id AS ownerId,",
+            "SELECT gi.id, gi.name, gi.announcement, gi.invite_code AS inviteCode,",
+            "  gi.owner_id AS ownerId,",
             "  u.username AS ownerUsername, u.nickname AS ownerNickname,",
             "  (SELECT COUNT(*) FROM group_member gm WHERE gm.group_id = gi.id AND gm.deleted = 0) AS memberCount,",
             "  gi.created_at AS createdAt",

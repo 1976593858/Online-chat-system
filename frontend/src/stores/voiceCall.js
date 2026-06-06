@@ -4,7 +4,6 @@ import { useAuthStore } from './auth'
 import { useWebSocketStore } from './websocket'
 import { ElMessage } from 'element-plus'
 
-/* 高质量音频采集约束 — 回声消除 / 降噪 / 自动增益 */
 const AUDIO_CONSTRAINTS = {
   audio: {
     echoCancellation: { ideal: true },
@@ -16,7 +15,6 @@ const AUDIO_CONSTRAINTS = {
   }
 }
 
-/* 多组 STUN 服务器，提升 NAT 穿透成功率 */
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -28,13 +26,13 @@ const ICE_SERVERS = {
   iceCandidatePoolSize: 2
 }
 
-/* 连接建立超时（毫秒） */
 const CONNECTION_TIMEOUT_MS = 30000
 
 export const useVoiceCallStore = defineStore('voiceCall', () => {
   const authStore = useAuthStore()
   const wsStore = useWebSocketStore()
 
+  // 1-on-1 state
   const callState = ref('idle') // idle | calling | ringing | connected | ended
   const remoteUserId = ref('')
   const remoteUsername = ref('')
@@ -50,8 +48,24 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   let pendingOffer = null
   let connectionTimeout = null
 
+  // Group call state
+  const groupCallActive = ref(false)
+  const groupCallRoomId = ref('')
+  const groupCallGroupId = ref('')
+  const groupCallGroupName = ref('')
+  const groupCallParticipants = ref([]) // [{ userId, username, state: 'connected'|'connecting' }]
+  const groupCallInitiator = ref('')
+
+  let groupPeerConnections = new Map() // userId -> RTCPeerConnection
+  let groupLocalStream = null
+  let groupRemoteAudios = new Map() // userId -> Audio element
+
   const myId = () => String(authStore.user?.id || '')
   const myName = () => authStore.user?.nickname || authStore.user?.username || ''
+
+  // ============================================================
+  // 1-on-1 signaling
+  // ============================================================
 
   function setupSignaling() {
     wsStore.addHandler(handleSignal)
@@ -103,8 +117,29 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
         if (from !== remoteUserId.value) return
         stopCall(data.reason || '通话连接失败')
         break
+
+      // Group call signals
+      case 'group_call_start':
+        handleGroupCallStart(data)
+        break
+
+      case 'group_call_join':
+        handleGroupCallJoin(data)
+        break
+
+      case 'group_call_leave':
+        handleGroupCallLeave(data)
+        break
+
+      case 'group_call_end':
+        handleGroupCallEnd(data)
+        break
     }
   }
+
+  // ============================================================
+  // 1-on-1 call
+  // ============================================================
 
   function startConnectionTimeout() {
     clearConnectionTimeout()
@@ -285,6 +320,11 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
         track.enabled = !micMuted.value
       })
     }
+    if (groupLocalStream) {
+      groupLocalStream.getAudioTracks().forEach(track => {
+        track.enabled = !micMuted.value
+      })
+    }
   }
 
   function stopCall(reason) {
@@ -329,6 +369,211 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     }
   }
 
+  // ============================================================
+  // Group call
+  // ============================================================
+
+  function handleGroupCallStart(data) {
+    if (groupCallActive.value || callState.value !== 'idle') return
+    groupCallActive.value = true
+    groupCallRoomId.value = data.callRoomId || ''
+    groupCallGroupId.value = data.groupId || ''
+    groupCallGroupName.value = data.groupName || ''
+    groupCallInitiator.value = String(data.fromUserId || '')
+    groupCallParticipants.value = [{
+      userId: String(data.fromUserId || ''),
+      username: data.fromUsername || '发起者',
+      state: 'connected'
+    }]
+    ElMessage.info(`${groupCallGroupName.value || '群聊'} 语音通话邀请`)
+  }
+
+  function handleGroupCallJoin(data) {
+    const uid = String(data.fromUserId || '')
+    const existing = groupCallParticipants.value.find(p => p.userId === uid)
+    if (existing) {
+      existing.state = 'connected'
+    } else {
+      groupCallParticipants.value.push({
+        userId: uid,
+        username: data.fromUsername || `用户 ${uid}`,
+        state: 'connected'
+      })
+    }
+    // If we're the initiator, create a peer connection to this new joiner
+    if (myId() === groupCallInitiator.value && !groupPeerConnections.has(uid)) {
+      createGroupPeerConnection(uid)
+    }
+  }
+
+  function handleGroupCallLeave(data) {
+    const uid = String(data.fromUserId || '')
+    removeGroupParticipant(uid)
+  }
+
+  function handleGroupCallEnd(_data) {
+    if (groupCallActive.value) {
+      stopGroupCall('通话已结束')
+    }
+  }
+
+  async function startGroupCall(groupId, groupName, onlineMembers) {
+    if (groupCallActive.value || callState.value !== 'idle') return
+
+    const roomId = 'gc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+    groupCallActive.value = true
+    groupCallRoomId.value = roomId
+    groupCallGroupId.value = String(groupId)
+    groupCallGroupName.value = groupName || ''
+    groupCallInitiator.value = myId()
+    groupCallParticipants.value = [{ userId: myId(), username: myName(), state: 'connected' }]
+
+    try {
+      groupLocalStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
+
+      // Create peer connections to each online member
+      for (const memberId of (onlineMembers || [])) {
+        const uid = String(memberId)
+        if (uid === myId()) continue
+        createGroupPeerConnection(uid)
+        groupCallParticipants.value.push({ userId: uid, username: `用户 ${uid}`, state: 'connecting' })
+      }
+
+      wsStore.send({
+        type: 'group_call_start',
+        groupId: String(groupId),
+        callRoomId: roomId,
+        fromUserId: myId(),
+        fromUsername: myName(),
+        groupName: groupName || ''
+      })
+    } catch (err) {
+      console.error('发起群通话失败', err)
+      stopGroupCall('发起群通话失败')
+    }
+  }
+
+  function createGroupPeerConnection(targetUserId) {
+    const uid = String(targetUserId)
+    if (groupPeerConnections.has(uid)) return
+
+    const pc = new RTCPeerConnection(ICE_SERVERS)
+    groupPeerConnections.set(uid, pc)
+
+    if (groupLocalStream) {
+      groupLocalStream.getTracks().forEach(track => pc.addTrack(track, groupLocalStream))
+    }
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        wsStore.send({
+          type: 'ice_candidate',
+          fromUserId: myId(),
+          toUserId: uid,
+          candidate: e.candidate
+        })
+      }
+    }
+
+    pc.ontrack = (e) => {
+      let audio = groupRemoteAudios.get(uid)
+      if (!audio) {
+        audio = new Audio()
+        audio.autoplay = true
+        groupRemoteAudios.set(uid, audio)
+      }
+      audio.srcObject = e.streams[0]
+    }
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') {
+        const p = groupCallParticipants.value.find(p => p.userId === uid)
+        if (p) p.state = 'connected'
+      } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        removeGroupParticipant(uid)
+      }
+    }
+
+    // Create offer (initiator sends offer to each participant)
+    pc.createOffer().then(offer => {
+      return pc.setLocalDescription(offer)
+    }).then(() => {
+      wsStore.send({
+        type: 'call_offer',
+        fromUserId: myId(),
+        toUserId: uid,
+        fromUsername: myName(),
+        sdp: pc.localDescription
+      })
+    }).catch(err => {
+      console.error('群通话 offer 失败', uid, err)
+    })
+  }
+
+  function removeGroupParticipant(uid) {
+    const pc = groupPeerConnections.get(uid)
+    if (pc) {
+      pc.close()
+      groupPeerConnections.delete(uid)
+    }
+    const audio = groupRemoteAudios.get(uid)
+    if (audio) {
+      audio.srcObject = null
+      groupRemoteAudios.delete(uid)
+    }
+    groupCallParticipants.value = groupCallParticipants.value.filter(p => p.userId !== uid)
+  }
+
+  function leaveGroupCall() {
+    wsStore.send({
+      type: 'group_call_leave',
+      groupId: groupCallGroupId.value,
+      fromUserId: myId()
+    })
+    stopGroupCall()
+  }
+
+  function endGroupCall() {
+    wsStore.send({
+      type: 'group_call_end',
+      groupId: groupCallGroupId.value,
+      fromUserId: myId()
+    })
+    stopGroupCall('通话已结束')
+  }
+
+  function stopGroupCall(reason) {
+    if (reason) {
+      ElMessage.info(reason)
+    }
+    // Close all peer connections
+    for (const [uid, pc] of groupPeerConnections) {
+      pc.close()
+    }
+    groupPeerConnections.clear()
+
+    for (const [uid, audio] of groupRemoteAudios) {
+      audio.srcObject = null
+    }
+    groupRemoteAudios.clear()
+
+    if (groupLocalStream) {
+      groupLocalStream.getTracks().forEach(t => t.stop())
+      groupLocalStream = null
+    }
+
+    groupCallActive.value = false
+    groupCallRoomId.value = ''
+    groupCallGroupId.value = ''
+    groupCallGroupName.value = ''
+    groupCallInitiator.value = ''
+    groupCallParticipants.value = []
+  }
+
+  // ============================================================
+  // Shared timer
+  // ============================================================
+
   function startTimer() {
     startTime.value = Date.now()
     elapsed.value = 0
@@ -352,7 +597,10 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
 
   return {
     callState, remoteUserId, remoteUsername, errorMsg, elapsed, micMuted,
+    groupCallActive, groupCallRoomId, groupCallGroupId, groupCallGroupName,
+    groupCallParticipants, groupCallInitiator,
     startCall, acceptCall, rejectCall, endCall, stopCall, resetCall, toggleMute,
-    formatTime, setupSignaling
+    formatTime, setupSignaling,
+    startGroupCall, leaveGroupCall, endGroupCall, stopGroupCall
   }
 })

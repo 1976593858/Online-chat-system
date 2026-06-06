@@ -14,6 +14,7 @@ public class GroupInfo {
     private Long id;
     private String name;
     private String announcement;
+    private String inviteCode;
     private Long ownerId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

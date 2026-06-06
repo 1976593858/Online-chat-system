@@ -60,6 +60,21 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void toggleMute(Long ownerId, Long conversationId, boolean muted) {
+        Conversation conversation = conversationMapper.selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getId, conversationId)
+                .eq(Conversation::getOwnerId, ownerId)
+                .last("LIMIT 1"));
+        if (conversation == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "会话不存在");
+        }
+        conversation.setMuted(muted ? 1 : 0);
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(conversation);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void markRead(Long ownerId, Long conversationId) {
         Conversation conversation = conversationMapper.selectOne(Wrappers.<Conversation>lambdaQuery()
                 .eq(Conversation::getId, conversationId)

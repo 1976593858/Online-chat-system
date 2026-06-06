@@ -15,6 +15,15 @@
         </div>
       </div>
       <div class="chat-topbar-actions">
+        <button
+          class="action-btn"
+          :class="{ muted: conversation?.muted }"
+          :disabled="!conversation"
+          :title="conversation?.muted ? '取消免打扰' : '开启免打扰'"
+          @click="toggleMute"
+        >
+          <span>{{ conversation?.muted ? '🔕' : '🔔' }}</span>
+        </button>
         <button class="action-btn" :disabled="!conversation" @click="downloadHistory" title="导出记录">
           <span>↓</span>
         </button>
@@ -85,7 +94,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { useVoiceCallStore } from '../stores/voiceCall'
-import { markConversationRead } from '../api/conversations'
+import { markConversationRead, toggleMuteConversation } from '../api/conversations'
 import { exportPrivateMessages, fetchPrivateMessages, openPrivateConversation, sendPrivateMessage } from '../api/messages'
 
 const route = useRoute()
@@ -218,6 +227,19 @@ function startVoiceCall() {
   if (!conversation.value) return
   const name = conversation.value.targetNickname || conversation.value.targetUsername || `用户 ${targetUserId.value}`
   voiceCallStore.startCall(targetUserId.value, name)
+}
+
+async function toggleMute() {
+  const conv = conversation.value
+  if (!conv) return
+  try {
+    const newMuted = !conv.muted
+    await toggleMuteConversation(conv.id, newMuted)
+    conv.muted = newMuted
+    ElMessage.success(newMuted ? '已开启免打扰' : '已取消免打扰')
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
 }
 </script>
 
@@ -366,6 +388,11 @@ function startVoiceCall() {
 .action-btn.primary:hover:not(:disabled) {
   background: var(--brand-hover);
   box-shadow: 0 6px 20px var(--brand-glow);
+}
+
+.action-btn.muted {
+  background: rgba(0,0,0,0.04);
+  opacity: 0.6;
 }
 
 /* ================================================

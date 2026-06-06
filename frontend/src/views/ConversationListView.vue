@@ -55,8 +55,16 @@
             </div>
           </div>
 
-          <!-- Time -->
+          <!-- Actions -->
           <div class="conv-meta">
+            <button
+              class="conv-mute-btn"
+              :class="{ muted: conversation.muted }"
+              :title="conversation.muted ? '取消免打扰' : '开启免打扰'"
+              @click.stop="toggleMute(conversation)"
+            >
+              {{ conversation.muted ? '🔕' : '🔔' }}
+            </button>
             <div class="conv-time">{{ conversation.lastMessageAt }}</div>
           </div>
         </article>
@@ -84,8 +92,10 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { useConversationStore } from '../stores/conversation'
+import { toggleMuteConversation } from '../api/conversations'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -116,6 +126,17 @@ async function loadRecent(pageNo = 1) {
 function logout() {
   authStore.logout()
   router.push('/login')
+}
+
+async function toggleMute(conv) {
+  try {
+    const newMuted = !conv.muted
+    await toggleMuteConversation(conv.id, newMuted)
+    conv.muted = newMuted
+    ElMessage.success(newMuted ? '已开启免打扰' : '已取消免打扰')
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
 }
 
 function openChat(conversation) {
@@ -367,6 +388,33 @@ function openChat(conversation) {
 .conv-meta {
   text-align: right;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.conv-mute-btn {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out-expo);
+  padding: 2px;
+  line-height: 1;
+}
+
+.conv-card:hover .conv-mute-btn {
+  opacity: 1;
+}
+
+.conv-mute-btn:hover {
+  transform: scale(1.15);
+}
+
+.conv-mute-btn.muted {
+  opacity: 0.7;
 }
 
 .conv-time {

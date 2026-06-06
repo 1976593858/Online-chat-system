@@ -13,5 +13,6 @@ public class GroupMemberVO {
     private String nickname;
     private String avatar;
     private String role;
+    private Integer muted;
     private LocalDateTime joinedAt;
 }

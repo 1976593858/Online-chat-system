@@ -2,14 +2,28 @@
   <main class="group-shell">
     <!-- Header -->
     <header class="group-topbar">
-      <button class="back-btn" @click="router.push('/conversations')">
+      <button class="back-btn" @click="router.push('/groups')">
         <span>←</span>
       </button>
       <div class="group-header-info">
         <div class="group-name">{{ groupName || '加载中…' }}</div>
-        <div class="group-label muted">{{ memberCount }} 位成员</div>
+        <div class="group-label muted">
+          {{ memberCount }} 位成员
+          <span v-if="inviteCode" class="invite-code-chip">码 {{ inviteCode }}</span>
+        </div>
       </div>
       <div class="group-topbar-actions">
+        <button
+          class="action-btn"
+          :class="{ muted: groupMuted }"
+          :title="groupMuted ? '取消免打扰' : '开启免打扰'"
+          @click="toggleGroupMute"
+        >
+          <span>{{ groupMuted ? '🔕' : '🔔' }}</span>
+        </button>
+        <button class="action-btn primary" @click="startGroupVoiceCall" title="群语音通话">
+          <span>📞</span>
+        </button>
         <button class="action-btn" :class="{ active: showMembers }" @click="showMembers = !showMembers" title="群成员">
           <span>👥</span>
         </button>
@@ -64,6 +78,12 @@
               <span v-if="member.role === 'OWNER'" class="member-role owner">群主</span>
               <span v-else-if="member.role === 'ADMIN'" class="member-role admin">管理员</span>
             </div>
+            <button
+              v-if="String(member.userId) !== String(myId)"
+              class="invite-member-btn"
+              title="邀请入群"
+              @click="inviteMemberById(member.userId)"
+            >+</button>
           </div>
         </div>
       </aside>
@@ -87,15 +107,39 @@
         </button>
       </div>
     </footer>
+
+    <!-- Invite dialog -->
+    <div v-if="showInviteDialog" class="dialog-overlay" @click.self="showInviteDialog = false">
+      <div class="dialog-card glass-highlight">
+        <h3 class="dialog-title">邀请好友入群</h3>
+        <input
+          v-model="inviteUserId"
+          class="dialog-input"
+          placeholder="输入好友 ID"
+          @keyup.enter="doInvite"
+        />
+        <div class="dialog-actions">
+          <button class="secondary-btn" @click="showInviteDialog = false">取消</button>
+          <button class="primary-btn" :disabled="!inviteUserId.trim() || inviting" @click="doInvite">
+            {{ inviting ? '邀请中…' : '邀请' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../../stores/auth'
 import { useWebSocketStore } from '../../stores/websocket'
-import { getGroupDetail, getGroupMembers, getGroupMessages, sendGroupMessage } from '../../api/groups'
+import { useVoiceCallStore } from '../../stores/voiceCall'
+import {
+  getGroupDetail, getGroupMembers, getGroupMessages, sendGroupMessage,
+  inviteToGroup, toggleMuteGroup
+} from '../../api/groups'
 
 const props = defineProps({
   groupId: { type: String, required: true }
@@ -104,6 +148,7 @@ const props = defineProps({
 const router = useRouter()
 const authStore = useAuthStore()
 const wsStore = useWebSocketStore()
+const voiceCallStore = useVoiceCallStore()
 
 const myId = computed(() => Number(authStore.user?.id))
 const myName = computed(() => authStore.user?.nickname || authStore.user?.username || '我')
@@ -113,6 +158,8 @@ const memberCount = ref(0)
 const members = ref([])
 const messages = ref([])
 const showMembers = ref(false)
+const inviteCode = ref('')
+const groupMuted = ref(false)
 
 const draft = ref('')
 const sending = ref(false)
@@ -127,6 +174,11 @@ const hasMore = computed(() => pages.value === 0 || pageNo.value < pages.value)
 
 const msgIds = ref(new Set())
 const avatarColors = ['#5E6AD2', '#FF8C42', '#00A8CC', '#1aad5e', '#E84040', '#8C52D2', '#F0A030', '#4A90D9']
+
+// Invite dialog
+const showInviteDialog = ref(false)
+const inviteUserId = ref('')
+const inviting = ref(false)
 
 function firstLetter(value) {
   return value ? String(value).slice(0, 1).toUpperCase() : '?'
@@ -184,11 +236,18 @@ function handleWsMessage(data) {
     messages.value = [...messages.value, data]
     scrollToBottom()
   }
+
+  // Handle group invite notification
+  if (data.type === 'group_invite' && data.action === 'invited') {
+    ElMessage.info(`你被邀请加入群聊 "${data.groupName}"`)
+  }
 }
 
 onMounted(async () => {
   if (!wsStore.isConnected()) wsStore.connect()
   wsStore.addHandler(handleWsMessage)
+  // Register voice call signaling handler so we receive group call notifications
+  voiceCallStore.setupSignaling()
   await loadGroupInfo()
   await loadMembers()
   await loadFirstPage()
@@ -203,6 +262,7 @@ async function loadGroupInfo() {
     const g = await getGroupDetail(Number(props.groupId))
     groupName.value = g.name
     memberCount.value = g.memberCount || 0
+    inviteCode.value = g.inviteCode || ''
   } catch (e) {
     groupName.value = '群聊 ' + props.groupId
   }
@@ -212,6 +272,11 @@ async function loadMembers() {
   try {
     members.value = await getGroupMembers(Number(props.groupId))
     memberCount.value = members.value.length
+    // Check if current user has muted this group
+    const me = members.value.find(m => String(m.userId) === String(myId.value))
+    if (me) {
+      groupMuted.value = me.muted === 1 || me.muted === true
+    }
   } catch (e) {
     // silently fail
   }
@@ -259,8 +324,6 @@ async function send() {
     draft.value = ''
     inputRef.value?.focus()
   } catch (e) {
-    // WebSocket will deliver the message to all, including sender
-    // On HTTP error, the message was not saved — show warning
     console.warn('群消息发送失败', e)
   } finally {
     sending.value = false
@@ -271,6 +334,48 @@ async function scrollToBottom() {
   await nextTick()
   const el = listRef.value
   if (el) el.scrollTop = el.scrollHeight
+}
+
+// Mute toggle
+async function toggleGroupMute() {
+  try {
+    const newMuted = !groupMuted.value
+    await toggleMuteGroup(Number(props.groupId), newMuted)
+    groupMuted.value = newMuted
+    ElMessage.success(newMuted ? '已开启免打扰' : '已取消免打扰')
+  } catch (e) {
+    ElMessage.error(e?.message || '操作失败')
+  }
+}
+
+// Voice call
+function startGroupVoiceCall() {
+  const onlineMemberIds = members.value
+    .filter(m => String(m.userId) !== String(myId.value))
+    .map(m => String(m.userId))
+  voiceCallStore.startGroupCall(props.groupId, groupName.value, onlineMemberIds)
+}
+
+// Member invite
+function inviteMemberById(userId) {
+  inviteUserId.value = String(userId)
+  showInviteDialog.value = true
+}
+
+async function doInvite() {
+  const id = inviteUserId.value.trim()
+  if (!id) return
+  inviting.value = true
+  try {
+    await inviteToGroup(Number(props.groupId), { inviteeId: Number(id) })
+    ElMessage.success('邀请已发送')
+    showInviteDialog.value = false
+    inviteUserId.value = ''
+  } catch (e) {
+    ElMessage.error(e?.message || '邀请失败')
+  } finally {
+    inviting.value = false
+  }
 }
 </script>
 
@@ -339,6 +444,20 @@ async function scrollToBottom() {
 
 .group-label {
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invite-code-chip {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: all;
 }
 
 .group-topbar-actions {
@@ -374,6 +493,22 @@ async function scrollToBottom() {
   background: var(--brand);
   color: #fff;
   box-shadow: 0 2px 8px var(--brand-glow);
+}
+
+.action-btn.muted {
+  opacity: 0.6;
+  background: rgba(0,0,0,0.04);
+}
+
+.action-btn.primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--brand-glow);
+}
+
+.action-btn.primary:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 6px 20px var(--brand-glow);
 }
 
 /* ================================================
@@ -636,6 +771,33 @@ async function scrollToBottom() {
   color: #7B83E8;
 }
 
+.invite-member-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--glass-border-2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.member-item:hover .invite-member-btn {
+  opacity: 1;
+}
+
+.invite-member-btn:hover {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
 /* ================================================
    Input Bar
    ================================================ */
@@ -715,6 +877,109 @@ async function scrollToBottom() {
 
 .send-btn:active {
   transform: scale(0.92);
+}
+
+/* ================================================
+   Dialog
+   ================================================ */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog-card {
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  padding: 28px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--glass-border-2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: springIn 0.45s var(--ease-spring-smooth) both;
+}
+
+.dialog-title {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dialog-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-md);
+  background: var(--glass-2);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.dialog-input:focus {
+  border-color: rgba(26, 173, 94, 0.3);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.primary-btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+  box-shadow: 0 2px 8px var(--brand-glow);
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: 0 6px 20px var(--brand-glow);
+  transform: translateY(-1px);
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  padding: 8px 18px;
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-full);
+  background: var(--glass-2);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+}
+
+.secondary-btn:hover {
+  background: var(--glass-1);
+  color: var(--text-primary);
+  border-color: var(--glass-border-3);
 }
 
 /* ================================================

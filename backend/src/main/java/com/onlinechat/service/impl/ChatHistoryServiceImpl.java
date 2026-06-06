@@ -21,7 +21,8 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
     }
 
     @Override
-    public PageResult<ChatHistorySearchVO> search(Long currentUserId, String keyword, Long userId, String fromDate, String toDate, long pageNo, long pageSize) {
+    public PageResult<ChatHistorySearchVO> search(Long currentUserId, String keyword, Long userId,
+                                                   String fromDate, String toDate, long pageNo, long pageSize) {
         StringBuilder where = new StringBuilder("WHERE m.deleted = 0");
         Object[] params = buildParams(currentUserId, keyword, userId, fromDate, toDate, where);
 
@@ -31,7 +32,12 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
         if (total == null) total = 0L;
 
         long offset = (pageNo - 1) * pageSize;
-        String querySql = "SELECT m.* FROM private_message m " + where +
+        String querySql = "SELECT m.*, fu.username AS from_username, fu.nickname AS from_nickname, " +
+                "tu.username AS to_username, tu.nickname AS to_nickname " +
+                "FROM private_message m " +
+                "LEFT JOIN user fu ON m.from_user_id = fu.id " +
+                "LEFT JOIN user tu ON m.to_user_id = tu.id " +
+                where +
                 " ORDER BY m.created_at DESC LIMIT ? OFFSET ?";
 
         Object[] queryParams = new Object[params.length + 2];
@@ -44,7 +50,11 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
             vo.setId(rs.getLong("id"));
             vo.setMessageId(rs.getLong("id"));
             vo.setFromUserId(rs.getLong("from_user_id"));
+            vo.setFromUserUsername(rs.getString("from_username"));
+            vo.setFromUserNickname(rs.getString("from_nickname"));
             vo.setToUserId(rs.getLong("to_user_id"));
+            vo.setToUserUsername(rs.getString("to_username"));
+            vo.setToUserNickname(rs.getString("to_nickname"));
             vo.setContent(rs.getString("content"));
             vo.setMessageType(rs.getString("message_type"));
             vo.setCreatedAt(rs.getTimestamp("created_at") != null ?
@@ -62,13 +72,17 @@ public class ChatHistoryServiceImpl implements ChatHistoryService {
         return result;
     }
 
-    private Object[] buildParams(Long currentUserId, String keyword, Long userId, String fromDate, String toDate, StringBuilder where) {
+    private Object[] buildParams(Long currentUserId, String keyword, Long userId,
+                                  String fromDate, String toDate, StringBuilder where) {
         List<Object> paramList = new ArrayList<>();
 
         if (keyword != null && !keyword.isBlank()) {
-            String escaped = keyword.trim().replaceAll("['\"\\\\]", " ");
-            where.append(" AND MATCH(m.content) AGAINST(? IN BOOLEAN MODE)");
-            paramList.add(escaped + "*");
+            String escaped = keyword.trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+            where.append(" AND m.content LIKE CONCAT('%', ?, '%') ESCAPE '\\\\'");
+            paramList.add(escaped);
         }
 
         if (userId != null) {

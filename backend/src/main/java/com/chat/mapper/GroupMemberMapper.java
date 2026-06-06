@@ -15,7 +15,7 @@ public interface GroupMemberMapper extends BaseMapper<GroupMember> {
     @Select({
             "SELECT gm.id, gm.group_id AS groupId, gm.user_id AS userId,",
             "  u.username, u.nickname, u.avatar,",
-            "  gm.role, gm.joined_at AS joinedAt",
+            "  gm.role, gm.muted, gm.joined_at AS joinedAt",
             "FROM group_member gm",
             "JOIN `user` u ON u.id = gm.user_id AND u.deleted = 0",
             "WHERE gm.group_id = #{groupId} AND gm.deleted = 0",
@@ -29,4 +29,11 @@ public interface GroupMemberMapper extends BaseMapper<GroupMember> {
             "WHERE group_id = #{groupId} AND user_id = #{userId} AND deleted = 0"
     })
     boolean isMember(@Param("groupId") Long groupId, @Param("userId") Long userId);
+
+    @Select({
+            "SELECT muted = 1",
+            "FROM group_member",
+            "WHERE group_id = #{groupId} AND user_id = #{userId} AND deleted = 0"
+    })
+    boolean isMuted(@Param("groupId") Long groupId, @Param("userId") Long userId);
 }

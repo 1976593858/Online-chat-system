@@ -10,4 +10,6 @@ public interface ConversationService {
     ConversationVO openPrivate(Long ownerId, Long targetUserId);
 
     void markRead(Long ownerId, Long conversationId);
+
+    void toggleMute(Long ownerId, Long conversationId, boolean muted);
 }
