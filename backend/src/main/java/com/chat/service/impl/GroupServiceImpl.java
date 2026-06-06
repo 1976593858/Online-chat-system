@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.chat.dto.GroupCreateDTO;
+import com.chat.dto.GroupUpdateDTO;
 import com.chat.entity.GroupInfo;
 import com.chat.entity.GroupMember;
 import com.chat.entity.GroupMessage;
@@ -16,12 +17,11 @@ import com.chat.vo.GroupMessageVO;
 import com.chat.vo.GroupVO;
 import com.onlinechat.common.PageResult;
 import com.onlinechat.common.ResultCode;
-import com.onlinechat.entity.User;
 import com.onlinechat.exception.BusinessException;
-import com.onlinechat.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -37,7 +37,6 @@ public class GroupServiceImpl implements GroupService {
     private final GroupInfoMapper groupInfoMapper;
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMessageMapper groupMessageMapper;
-    private final UserMapper userMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -60,14 +59,26 @@ public class GroupServiceImpl implements GroupService {
         member.setUpdatedAt(now);
         groupMemberMapper.insert(member);
 
-        GroupVO vo = new GroupVO();
-        vo.setId(group.getId());
-        vo.setName(group.getName());
-        vo.setAnnouncement(group.getAnnouncement());
-        vo.setOwnerId(ownerId);
-        vo.setMemberCount(1L);
-        vo.setCreatedAt(now);
-        return vo;
+        return groupInfoMapper.selectGroupDetail(group.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public GroupVO updateGroup(Long userId, Long groupId, GroupUpdateDTO dto) {
+        GroupInfo group = ensureGroupExists(groupId);
+        GroupMember member = ensureMember(groupId, userId);
+        if (!"OWNER".equals(member.getRole()) && !"ADMIN".equals(member.getRole())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅群主或管理员可以修改群信息");
+        }
+        if (StringUtils.hasText(dto.getName())) {
+            group.setName(dto.getName().trim());
+        }
+        if (dto.getAnnouncement() != null) {
+            group.setAnnouncement(dto.getAnnouncement());
+        }
+        group.setUpdatedAt(LocalDateTime.now());
+        groupInfoMapper.updateById(group);
+        return groupInfoMapper.selectGroupDetail(groupId);
     }
 
     @Override
@@ -87,10 +98,7 @@ public class GroupServiceImpl implements GroupService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void joinGroup(Long userId, Long groupId) {
-        GroupInfo group = groupInfoMapper.selectById(groupId);
-        if (group == null || group.getDeleted() != null && group.getDeleted() == 1) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "群聊不存在");
-        }
+        GroupInfo group = ensureGroupExists(groupId);
         if (groupMemberMapper.isMember(groupId, userId)) {
             return;
         }
@@ -108,12 +116,29 @@ public class GroupServiceImpl implements GroupService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void leaveGroup(Long userId, Long groupId) {
-        GroupMember member = groupMemberMapper.selectOne(Wrappers.<GroupMember>lambdaQuery()
-                .eq(GroupMember::getGroupId, groupId)
-                .eq(GroupMember::getUserId, userId)
-                .last("LIMIT 1"));
-        if (member == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "你不在该群中");
+        GroupMember member = ensureMember(groupId, userId);
+        if ("OWNER".equals(member.getRole())) {
+            // Transfer ownership to the earliest admin or member, or dissolve the group
+            List<GroupMemberVO> members = groupMemberMapper.selectMembersByGroupId(groupId);
+            GroupMemberVO successor = members.stream()
+                    .filter(m -> !m.getUserId().equals(userId))
+                    .findFirst()
+                    .orElse(null);
+            if (successor == null) {
+                groupInfoMapper.deleteById(groupId);
+                groupMemberMapper.deleteById(member);
+                return;
+            }
+            // Transfer ownership
+            GroupMember successorMember = groupMemberMapper.selectOne(Wrappers.<GroupMember>lambdaQuery()
+                    .eq(GroupMember::getGroupId, groupId)
+                    .eq(GroupMember::getUserId, successor.getUserId())
+                    .last("LIMIT 1"));
+            successorMember.setRole("OWNER");
+            groupMemberMapper.updateById(successorMember);
+            GroupInfo group = groupInfoMapper.selectById(groupId);
+            group.setOwnerId(successor.getUserId());
+            groupInfoMapper.updateById(group);
         }
         groupMemberMapper.deleteById(member);
 
@@ -125,22 +150,40 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
-    public List<GroupMemberVO> getGroupMembers(Long groupId) {
-        ensureGroupExists(groupId);
+    @Transactional(rollbackFor = Exception.class)
+    public void removeMember(Long operatorId, Long groupId, Long memberId) {
+        GroupMember operatorMember = ensureMember(groupId, operatorId);
+        if (!"OWNER".equals(operatorMember.getRole()) && !"ADMIN".equals(operatorMember.getRole())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅群主或管理员可以移除成员");
+        }
+        GroupMember targetMember = ensureMember(groupId, memberId);
+        if ("OWNER".equals(targetMember.getRole())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "不能移除群主");
+        }
+        if ("ADMIN".equals(targetMember.getRole()) && !"OWNER".equals(operatorMember.getRole())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "管理员不能移除其他管理员");
+        }
+        groupMemberMapper.deleteById(targetMember);
+    }
+
+    @Override
+    public List<GroupMemberVO> getGroupMembers(Long groupId, Long userId) {
+        ensureMember(groupId, userId);
         return groupMemberMapper.selectMembersByGroupId(groupId);
     }
 
     @Override
-    public PageResult<GroupMessageVO> getGroupMessages(Long groupId, long pageNo, long pageSize) {
-        ensureGroupExists(groupId);
+    public PageResult<GroupMessageVO> getGroupMessages(Long groupId, Long userId, long pageNo, long pageSize) {
+        ensureMember(groupId, userId);
         IPage<GroupMessageVO> page = groupMessageMapper.selectPageByGroupId(
                 new Page<>(pageNo, pageSize), groupId);
         return PageResult.of(page);
     }
 
     @Override
-    public byte[] exportGroupMessages(Long groupId) {
-        GroupVO group = getGroupDetail(groupId);
+    public byte[] exportGroupMessages(Long groupId, Long userId) {
+        ensureMember(groupId, userId);
+        GroupVO group = groupInfoMapper.selectGroupDetail(groupId);
         List<GroupMessageVO> messages = groupMessageMapper.selectAllByGroupId(groupId);
 
         StringBuilder builder = new StringBuilder();
@@ -160,10 +203,22 @@ public class GroupServiceImpl implements GroupService {
         return builder.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private void ensureGroupExists(Long groupId) {
+    private GroupInfo ensureGroupExists(Long groupId) {
         GroupInfo group = groupInfoMapper.selectById(groupId);
-        if (group == null || group.getDeleted() != null && group.getDeleted() == 1) {
+        if (group == null || (group.getDeleted() != null && group.getDeleted() == 1)) {
             throw new BusinessException(ResultCode.NOT_FOUND, "群聊不存在");
         }
+        return group;
+    }
+
+    private GroupMember ensureMember(Long groupId, Long userId) {
+        GroupMember member = groupMemberMapper.selectOne(Wrappers.<GroupMember>lambdaQuery()
+                .eq(GroupMember::getGroupId, groupId)
+                .eq(GroupMember::getUserId, userId)
+                .last("LIMIT 1"));
+        if (member == null) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "你不是该群成员");
+        }
+        return member;
     }
 }

@@ -9,6 +9,7 @@
       <nav class="nav-links">
         <RouterLink class="nav-link active" to="/friends">好友</RouterLink>
         <RouterLink class="nav-link" to="/conversations">消息</RouterLink>
+        <RouterLink class="nav-link" to="/groups">群聊</RouterLink>
         <RouterLink class="nav-link" to="/chat-history">搜索</RouterLink>
         <button class="nav-logout" @click="logout">退出</button>
       </nav>
