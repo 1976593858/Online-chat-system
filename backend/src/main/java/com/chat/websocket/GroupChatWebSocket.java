@@ -159,6 +159,26 @@ public class GroupChatWebSocket {
                 return;
             }
 
+            if ("group_call_accept".equals(type)) {
+                String toUserId = msg.getString("toUserId");
+                msg.put("fromUserId", userId);
+                if (toUserId != null && !toUserId.isEmpty()) {
+                    sendToUser(toUserId, msg.toJSONString());
+                }
+                log.info("群语音通话接受 callRoomId={} by={}", msg.getString("callRoomId"), userId);
+                return;
+            }
+
+            if ("group_call_reject".equals(type)) {
+                String toUserId = msg.getString("toUserId");
+                msg.put("fromUserId", userId);
+                if (toUserId != null && !toUserId.isEmpty()) {
+                    sendToUser(toUserId, msg.toJSONString());
+                }
+                log.info("群语音通话拒绝 callRoomId={} by={}", msg.getString("callRoomId"), userId);
+                return;
+            }
+
             if ("group_call_join".equals(type)) {
                 String toUserId = msg.getString("toUserId");
                 msg.put("fromUserId", userId);

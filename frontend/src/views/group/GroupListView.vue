@@ -46,7 +46,8 @@
           <div class="group-card-content">
             <div class="group-card-name">{{ group.name }}</div>
             <div class="group-card-meta muted">
-              {{ group.memberCount ?? 0 }} 位成员
+              <span class="group-id-label">#{{ group.id }}</span>
+              · {{ group.memberCount ?? 0 }} 位成员
               <span v-if="group.announcement"> · {{ group.announcement }}</span>
               <span v-if="group.inviteCode" class="invite-code-label"> · 码: {{ group.inviteCode }}</span>
             </div>
@@ -558,6 +559,11 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.group-id-label {
+  color: var(--brand);
+  font-weight: 700;
 }
 
 .invite-code-label {

@@ -6,7 +6,10 @@
         <span>←</span>
       </button>
       <div class="group-header-info">
-        <div class="group-name">{{ groupName || '加载中…' }}</div>
+        <div class="group-name">
+          {{ groupName || '加载中…' }}
+          <span class="group-id-tag">#{{ groupId }}</span>
+        </div>
         <div class="group-label muted">
           {{ memberCount }} 位成员
           <span v-if="inviteCode" class="invite-code-chip">码 {{ inviteCode }}</span>
@@ -350,10 +353,7 @@ async function toggleGroupMute() {
 
 // Voice call
 function startGroupVoiceCall() {
-  const onlineMemberIds = members.value
-    .filter(m => String(m.userId) !== String(myId.value))
-    .map(m => String(m.userId))
-  voiceCallStore.startGroupCall(props.groupId, groupName.value, onlineMemberIds)
+  voiceCallStore.startGroupCall(props.groupId, groupName.value)
 }
 
 // Member invite
@@ -440,6 +440,19 @@ async function doInvite() {
   font-size: 16px;
   color: var(--text-primary);
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-id-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--brand-soft);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
 }
 
 .group-label {

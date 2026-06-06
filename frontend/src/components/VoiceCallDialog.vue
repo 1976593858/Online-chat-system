@@ -1,104 +1,179 @@
 <template>
   <Teleport to="body">
     <transition name="call-fade">
-      <div v-if="callState !== 'idle' || groupCallActive" class="voice-call-wrapper">
-      <!-- 1-on-1 Call -->
-      <div v-if="callState !== 'idle'" class="voice-call-overlay">
-        <div v-if="callState === 'calling'" class="call-panel">
-          <div class="call-avatar">{{ firstLetter(remoteUsername) }}</div>
-          <div class="call-name">{{ remoteUsername }}</div>
-          <div class="call-status ring-text">正在呼叫...</div>
-          <div class="call-actions">
-            <button class="btn-hangup" @click="endCall">
-              <span>📞</span> 取消
-            </button>
-          </div>
-        </div>
+      <div v-if="callState !== 'idle' || groupCallState !== 'idle'" class="voice-call-wrapper">
 
-        <div v-else-if="callState === 'ringing'" class="call-panel ringing">
-          <div class="call-avatar ringing-avatar">{{ firstLetter(remoteUsername) }}</div>
-          <div class="call-name">{{ remoteUsername }}</div>
-          <div class="call-status">邀请你进行语音通话</div>
-          <div class="call-actions">
-            <button class="btn-accept" @click="acceptCall">
-              <span>📞</span> 接听
-            </button>
-            <button class="btn-hangup" @click="rejectCall">
-              <span>✕</span> 拒绝
-            </button>
-          </div>
-        </div>
-
-        <div v-else-if="callState === 'connected'" class="call-panel connected">
-          <div class="call-avatar connected-avatar">{{ firstLetter(remoteUsername) }}</div>
-          <div class="call-name">{{ remoteUsername }}</div>
-          <div class="call-status timer">{{ formatTime(elapsed) }}</div>
-          <div class="call-actions">
-            <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
-              {{ micMuted ? '🔇' : '🎤' }}
-            </button>
-            <button class="btn-hangup" @click="endCall">
-              <span>📞</span> 挂断
-            </button>
-          </div>
-        </div>
-
-        <div v-else-if="callState === 'ended'" class="call-panel ended">
-          <div class="call-avatar ended-avatar">{{ firstLetter(remoteUsername) }}</div>
-          <div class="call-name">{{ remoteUsername }}</div>
-          <div class="call-status ended-text">{{ errorMsg || '通话已结束' }}</div>
-          <div class="call-actions">
-            <button class="btn-close" @click="resetCall">关闭</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Group Call -->
-      <div v-if="groupCallActive" class="voice-call-overlay">
-        <div class="call-panel group-call-panel">
-          <div class="group-call-header">
-            <div class="group-call-icon">👥</div>
-            <div class="call-name">{{ groupCallGroupName }}</div>
-            <div class="call-status">{{ groupCallParticipants.length }} 人在通话</div>
-          </div>
-
-          <div class="group-participants">
-            <div
-              v-for="p in groupCallParticipants"
-              :key="p.userId"
-              class="group-participant-item"
-            >
-              <div class="participant-avatar" :style="participantColor(p.userId)">
-                {{ firstLetter(p.username) }}
-              </div>
-              <div class="participant-info">
-                <span class="participant-name">{{ p.username }}</span>
-                <span class="participant-state" :class="p.state">
-                  {{ p.state === 'connected' ? '通话中' : '连接中…' }}
-                  <span v-if="p.state === 'connected'" class="state-dot connected"></span>
-                  <span v-else class="state-dot connecting"></span>
-                </span>
-              </div>
+        <!-- ============================================================
+             1-on-1 Call
+             ============================================================ -->
+        <div v-if="callState !== 'idle'" class="voice-call-overlay">
+          <div v-if="callState === 'calling'" class="call-panel">
+            <div class="call-avatar">{{ firstLetter(remoteUsername) }}</div>
+            <div class="call-name">{{ remoteUsername }}</div>
+            <div class="call-detail muted">一对一语音通话</div>
+            <div class="call-status ring-text">正在呼叫…</div>
+            <div class="call-actions">
+              <button class="btn-hangup" @click="endCall">
+                <span>✕</span> 取消
+              </button>
             </div>
           </div>
 
-          <div class="call-actions">
-            <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
-              {{ micMuted ? '🔇' : '🎤' }}
-            </button>
-            <button
-              v-if="groupCallInitiator === myId"
-              class="btn-hangup"
-              @click="endGroupCall"
-            >
-              <span>📞</span> 结束通话
-            </button>
-            <button v-else class="btn-hangup" @click="leaveGroupCall">
-              <span>📞</span> 离开
-            </button>
+          <div v-else-if="callState === 'ringing'" class="call-panel ringing">
+            <div class="call-avatar ringing-avatar">{{ firstLetter(remoteUsername) }}</div>
+            <div class="call-name">{{ remoteUsername }}</div>
+            <div class="call-detail muted">一对一语音通话</div>
+            <div class="call-status">邀请你进行语音通话</div>
+            <div class="call-actions">
+              <button class="btn-accept" @click="acceptCall">
+                <span>📞</span> 接听
+              </button>
+              <button class="btn-reject" @click="rejectCall">
+                <span>✕</span> 拒绝
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="callState === 'connected'" class="call-panel connected">
+            <div class="call-avatar connected-avatar">{{ firstLetter(remoteUsername) }}</div>
+            <div class="call-name">{{ remoteUsername }}</div>
+            <div class="call-detail muted">一对一语音通话</div>
+            <div class="call-status timer">{{ formatTime(elapsed) }}</div>
+            <div class="call-actions">
+              <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
+                {{ micMuted ? '🔇' : '🎤' }}
+              </button>
+              <button class="btn-hangup" @click="endCall">
+                <span>📞</span> 挂断
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="callState === 'ended'" class="call-panel ended">
+            <div class="call-avatar ended-avatar">{{ firstLetter(remoteUsername) }}</div>
+            <div class="call-name">{{ remoteUsername }}</div>
+            <div class="call-detail muted">一对一语音通话</div>
+            <div class="call-status ended-text">{{ errorMsg || '通话已结束' }}</div>
+            <div class="call-actions">
+              <button class="btn-close" @click="resetCall">关闭</button>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- ============================================================
+             Group Call
+             ============================================================ -->
+        <div v-if="groupCallState !== 'idle'" class="voice-call-overlay">
+
+          <!-- Group calling (initiator waiting for answers) -->
+          <div v-if="groupCallState === 'calling'" class="call-panel group-call-panel">
+            <div class="group-call-header">
+              <div class="group-call-icon">👥</div>
+              <div class="call-name">{{ groupCallGroupName }}</div>
+              <div class="call-id-tag">群聊 #{{ groupCallGroupId }}</div>
+              <div v-if="groupCallInitiator === myId" class="call-status ring-text">正在发起群聊通话…</div>
+              <div v-else class="call-status ring-text">正在连接…</div>
+            </div>
+
+            <div class="group-participants">
+              <div v-for="p in groupCallParticipants" :key="p.userId" class="group-participant-item">
+                <div class="participant-avatar" :style="participantColor(p.userId)">
+                  {{ firstLetter(p.username) }}
+                </div>
+                <div class="participant-info">
+                  <span class="participant-name">{{ p.username }}</span>
+                  <span class="participant-state" :class="p.state">
+                    {{ p.state === 'connected' ? '在线' : p.state === 'connecting' ? '连接中…' : '等待应答' }}
+                    <span v-if="p.state === 'connected'" class="state-dot connected"></span>
+                    <span v-else class="state-dot waiting"></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="call-actions">
+              <button
+                v-if="groupCallInitiator === myId"
+                class="btn-hangup"
+                @click="endGroupCall">
+                <span>✕</span> 取消通话
+              </button>
+              <button v-else class="btn-hangup" @click="rejectGroupCall">
+                <span>✕</span> 取消
+              </button>
+            </div>
+          </div>
+
+          <!-- Group ringing (recipient sees incoming invitation) -->
+          <div v-else-if="groupCallState === 'ringing'" class="call-panel group-call-panel ringing">
+            <div class="group-call-header">
+              <div class="group-call-icon">👥</div>
+              <div class="call-name">{{ groupCallGroupName }}</div>
+              <div class="call-id-tag">群聊 #{{ groupCallGroupId }}</div>
+              <div class="call-status">{{ groupCallInitiatorName }} 发起群聊语音通话</div>
+            </div>
+            <div class="call-actions">
+              <button class="btn-accept" @click="acceptGroupCall">
+                <span>📞</span> 接听
+              </button>
+              <button class="btn-reject" @click="rejectGroupCall">
+                <span>✕</span> 拒绝
+              </button>
+            </div>
+          </div>
+
+          <!-- Group connected (active call) -->
+          <div v-else-if="groupCallState === 'connected'" class="call-panel group-call-panel connected">
+            <div class="group-call-header">
+              <div class="group-call-icon">👥</div>
+              <div class="call-name">{{ groupCallGroupName }}</div>
+              <div class="call-id-tag">群聊 #{{ groupCallGroupId }}</div>
+              <div class="call-status timer">{{ formatTime(elapsed) }}</div>
+            </div>
+
+            <div class="group-participants">
+              <div v-for="p in groupCallParticipants" :key="p.userId" class="group-participant-item">
+                <div class="participant-avatar" :style="participantColor(p.userId)">
+                  {{ firstLetter(p.username) }}
+                </div>
+                <div class="participant-info">
+                  <span class="participant-name">{{ p.username }}</span>
+                  <span class="participant-state" :class="p.state">
+                    {{ p.state === 'connected' ? '通话中' : '连接中…' }}
+                    <span v-if="p.state === 'connected'" class="state-dot connected"></span>
+                    <span v-else class="state-dot connecting"></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="call-actions">
+              <button class="btn-mute" :class="{ muted: micMuted }" @click="toggleMute">
+                {{ micMuted ? '🔇' : '🎤' }}
+              </button>
+              <button v-if="groupCallInitiator === myId" class="btn-hangup" @click="endGroupCall">
+                <span>📞</span> 结束通话
+              </button>
+              <button v-else class="btn-hangup" @click="leaveGroupCall">
+                <span>📞</span> 离开
+              </button>
+            </div>
+          </div>
+
+          <!-- Group ended -->
+          <div v-else-if="groupCallState === 'ended'" class="call-panel group-call-panel ended">
+            <div class="group-call-header">
+              <div class="group-call-icon">👥</div>
+              <div class="call-name">{{ groupCallGroupName }}</div>
+              <div class="call-id-tag">群聊 #{{ groupCallGroupId }}</div>
+              <div class="call-status ended-text">{{ groupCallError || '通话已结束' }}</div>
+            </div>
+            <div class="call-actions">
+              <button class="btn-close" @click="stopGroupCall">关闭</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </transition>
   </Teleport>
@@ -114,11 +189,12 @@ const store = useVoiceCallStore()
 const authStore = useAuthStore()
 const {
   callState, remoteUsername, errorMsg, elapsed, micMuted,
-  groupCallActive, groupCallGroupName, groupCallParticipants, groupCallInitiator
+  groupCallState, groupCallGroupId, groupCallGroupName, groupCallParticipants, groupCallInitiator,
+  groupCallInitiatorName, groupCallError
 } = storeToRefs(store)
 const {
   acceptCall, rejectCall, endCall, resetCall, formatTime, toggleMute,
-  leaveGroupCall, endGroupCall
+  acceptGroupCall, rejectGroupCall, leaveGroupCall, endGroupCall, stopGroupCall
 } = store
 
 const myId = computed(() => String(authStore.user?.id || ''))
@@ -173,20 +249,12 @@ function participantColor(userId) {
   z-index: 0;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.45) 0%,
-    rgba(255, 255, 255, 0.12) 35%,
-    transparent 55%
-  );
+  background: linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 35%, transparent 55%);
 }
 
-.call-panel > * {
-  position: relative;
-  z-index: 1;
-}
+.call-panel > * { position: relative; z-index: 1; }
 
-/* Group call panel — wider */
+/* Group call panel */
 .group-call-panel {
   min-width: 400px;
   max-width: 480px;
@@ -202,12 +270,28 @@ function participantColor(userId) {
   margin-bottom: 8px;
 }
 
+.call-id-tag {
+  font-size: 11px;
+  color: var(--brand);
+  font-weight: 600;
+  margin-top: 2px;
+  padding: 1px 8px;
+  background: var(--brand-soft);
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+.call-detail {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
 .group-participants {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 28px;
-  max-height: 280px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
@@ -255,10 +339,6 @@ function participantColor(userId) {
   gap: 6px;
 }
 
-.participant-state.connected {
-  color: var(--success);
-}
-
 .state-dot {
   width: 8px;
   height: 8px;
@@ -272,6 +352,12 @@ function participantColor(userId) {
 
 .state-dot.connecting {
   background: var(--text-tertiary);
+  animation: blink 1s ease infinite;
+}
+
+.state-dot.waiting {
+  background: #f0a030;
+  box-shadow: 0 0 6px rgba(240, 160, 48, 0.5);
   animation: blink 1s ease infinite;
 }
 
@@ -307,7 +393,7 @@ function participantColor(userId) {
 .call-name {
   font-size: 26px;
   font-weight: 780;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   color: var(--text-primary);
   letter-spacing: -0.03em;
 }
@@ -376,6 +462,14 @@ button:active { transform: scale(0.94); }
   box-shadow: 0 8px 26px rgba(46, 204, 113, 0.45);
 }
 
+.btn-reject {
+  background: rgba(0,0,0,0.08);
+  color: var(--text-primary);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+}
+.btn-reject:hover { background: rgba(0,0,0,0.14); }
+
 .btn-close {
   background: rgba(0, 0, 0, 0.06);
   color: var(--text-primary);
@@ -421,9 +515,7 @@ button:active { transform: scale(0.94); }
 .call-fade-enter-active, .call-fade-leave-active {
   transition: opacity 0.35s var(--ease-out-expo);
 }
-.call-fade-enter-from, .call-fade-leave-to {
-  opacity: 0;
-}
+.call-fade-enter-from, .call-fade-leave-to { opacity: 0; }
 
 @media (max-width: 480px) {
   .call-panel {
