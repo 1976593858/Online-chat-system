@@ -1,199 +1,285 @@
 <template>
-  <main class="app-shell">
-    <header class="topbar">
-      <div>
-        <div class="brand-mark">Online Chat</div>
-        <h1 class="page-title">好友管理</h1>
-        <p class="page-subtitle">搜索用户、处理申请、维护分组和好友资料。</p>
+  <main class="friends-shell">
+    <!-- Header -->
+    <header class="friends-topbar">
+      <div class="friends-brand">
+        <div class="friends-brand-icon">◇</div>
+        <div class="friends-brand-text">Online Chat</div>
       </div>
       <nav class="nav-links">
-        <RouterLink class="nav-link" to="/friends">好友</RouterLink>
-        <RouterLink class="nav-link" to="/conversations">消息列表</RouterLink>
+        <RouterLink class="nav-link active" to="/friends">好友</RouterLink>
+        <RouterLink class="nav-link" to="/conversations">消息</RouterLink>
         <RouterLink class="nav-link" to="/chat-history">搜索</RouterLink>
-        <el-button plain @click="logout">退出</el-button>
+        <button class="nav-logout" @click="logout">退出</button>
       </nav>
     </header>
 
-    <section class="workspace-grid">
-      <aside class="side-panel glass-card">
-        <div class="toolbar">
-          <strong>好友分组</strong>
-          <el-button type="primary" size="small" @click="promptCreateGroup">新建</el-button>
+    <!-- Layout: sidebar + main -->
+    <div class="friends-layout">
+      <!-- Sidebar — Groups -->
+      <aside class="friends-sidebar glass-highlight">
+        <div class="sidebar-head">
+          <h3 class="sidebar-title">分组</h3>
+          <button class="sidebar-add" @click="promptCreateGroup">+</button>
         </div>
-        <div class="stack">
-          <el-card
+        <div class="sidebar-groups">
+          <div
             v-for="group in friendStore.groups"
             :key="group.id"
-            shadow="never"
-            :class="{ active: activeGroupId === group.id }"
-            class="group-card"
+            :class="['group-card', { active: activeGroupId === group.id }]"
             @click="selectGroup(group.id)"
           >
-            <div class="group-row">
-              <span>{{ group.name }}</span>
-              <el-tag size="small">{{ group.friendCount || 0 }}</el-tag>
+            <div class="group-card-main">
+              <span class="group-card-name">{{ group.name }}</span>
+              <span class="group-card-count">{{ group.friendCount || 0 }}</span>
             </div>
-            <div class="group-actions" @click.stop>
-              <el-tag v-if="group.isDefault === 1" type="info" size="small">默认</el-tag>
-              <el-button v-else link size="small" @click="promptRenameGroup(group)">改名</el-button>
-              <el-button v-if="group.isDefault !== 1" link type="danger" size="small" @click="confirmDeleteGroup(group)">删除</el-button>
+            <div class="group-card-actions" @click.stop>
+              <template v-if="group.isDefault === 1">
+                <span class="group-default-tag">默认</span>
+              </template>
+              <template v-else>
+                <button class="group-action-btn" @click="promptRenameGroup(group)">改名</button>
+                <button class="group-action-btn danger" @click="confirmDeleteGroup(group)">删除</button>
+              </template>
             </div>
-          </el-card>
+          </div>
         </div>
       </aside>
 
-      <section class="main-panel glass-card">
-        <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-          <el-tab-pane label="好友列表" name="friends">
-            <div class="toolbar">
-              <el-input v-model="friendKeyword" clearable placeholder="按用户名、昵称、备注搜索" style="max-width: 360px" @keyup.enter="loadFriends(1)" />
-              <el-button type="primary" @click="loadFriends(1)">查询</el-button>
-            </div>
-            <el-table :data="friendStore.friendsPage.records" row-key="friendId">
-              <el-table-column label="好友">
-                <template #default="{ row }">
-                  <el-avatar :src="row.avatar">{{ firstLetter(row.nickname || row.username) }}</el-avatar>
-                  <span class="friend-name">{{ row.remark || row.nickname || row.username }}</span>
-                  <span class="muted">@{{ row.username }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="groupName" label="分组" width="140" />
-              <el-table-column prop="createdAt" label="添加时间" width="180" />
-              <el-table-column label="操作" width="280">
-                <template #default="{ row }">
-                  <el-button link @click="openDetail(row.friendId)">详情</el-button>
-                  <el-button link type="primary" @click="openChat(row.friendId)">私聊</el-button>
-                  <el-button link @click="promptRemark(row)">备注</el-button>
-                  <el-button link @click="openMoveDialog(row)">移动</el-button>
-                  <el-button link type="danger" @click="confirmDeleteFriend(row)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-pagination
-              layout="prev, pager, next, total"
-              :total="friendStore.friendsPage.total"
-              :current-page="friendStore.friendsPage.pageNo"
-              :page-size="friendStore.friendsPage.pageSize"
-              @current-change="loadFriends"
-            />
-          </el-tab-pane>
+      <!-- Main Panel -->
+      <section class="friends-main glass-highlight">
+        <!-- Custom tab pills -->
+        <div class="main-tabs">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            :class="['main-tab', { active: activeTab === tab.key }]"
+            @click="switchTab(tab.key)"
+          >{{ tab.label }}</button>
+        </div>
 
-          <el-tab-pane label="搜索用户" name="search">
-            <div class="toolbar">
-              <el-input v-model="searchKeyword" clearable placeholder="输入用户名、昵称或邮箱" style="max-width: 420px" @keyup.enter="searchUsers(1)" />
-              <el-button type="primary" @click="searchUsers(1)">搜索</el-button>
-            </div>
-            <el-table :data="friendStore.searchPage.records" row-key="id">
-              <el-table-column label="用户">
-                <template #default="{ row }">
-                  <el-avatar :src="row.avatar">{{ firstLetter(row.nickname || row.username) }}</el-avatar>
-                  <span class="friend-name">{{ row.nickname || row.username }}</span>
-                  <span class="muted">@{{ row.username }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="email" label="邮箱" />
-              <el-table-column label="关系" width="160">
-                <template #default="{ row }">
-                  <el-tag :type="relationTagType(row.relationStatus)">{{ relationText(row.relationStatus) }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="160">
-                <template #default="{ row }">
-                  <el-button type="primary" size="small" :disabled="row.relationStatus !== 'NONE'" @click="promptSendRequest(row)">添加好友</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-pagination
-              layout="prev, pager, next, total"
-              :total="friendStore.searchPage.total"
-              :current-page="friendStore.searchPage.pageNo"
-              :page-size="friendStore.searchPage.pageSize"
-              @current-change="searchUsers"
+        <!-- Friends Tab -->
+        <div v-show="activeTab === 'friends'" class="tab-content">
+          <div class="tab-toolbar">
+            <input
+              v-model="friendKeyword"
+              class="tab-search"
+              placeholder="搜索好友…"
+              @keyup.enter="loadFriends(1)"
             />
-          </el-tab-pane>
+            <button class="tab-action-btn" @click="loadFriends(1)">查询</button>
+          </div>
 
-          <el-tab-pane label="好友申请" name="requests">
-            <div class="toolbar">
-              <div>
-                <el-select v-model="requestDirection" style="width: 140px" @change="loadRequests(1)">
-                  <el-option label="收到的申请" value="received" />
-                  <el-option label="发出的申请" value="sent" />
-                </el-select>
-                <el-select v-model="requestStatus" clearable style="width: 140px; margin-left: 8px" @change="loadRequests(1)">
-                  <el-option label="待处理" value="PENDING" />
-                  <el-option label="已同意" value="ACCEPTED" />
-                  <el-option label="已拒绝" value="REJECTED" />
-                </el-select>
+          <div class="friend-list" v-if="friendStore.friendsPage.records.length">
+            <div
+              v-for="friend in friendStore.friendsPage.records"
+              :key="friend.friendId"
+              class="friend-card"
+            >
+              <div class="friend-avatar" :style="friendAvatarStyle(friend)">
+                {{ firstLetter(friend.remark || friend.nickname || friend.username) }}
               </div>
-              <el-button @click="loadRequests(1)">刷新</el-button>
+              <div class="friend-info">
+                <div class="friend-name">{{ friend.remark || friend.nickname || friend.username }}</div>
+                <div class="friend-meta">
+                  <span class="muted">@{{ friend.username }}</span>
+                  <span class="friend-group-tag">{{ friend.groupName }}</span>
+                </div>
+              </div>
+              <div class="friend-actions">
+                <button class="friend-btn" @click="openDetail(friend.friendId)">详情</button>
+                <button class="friend-btn primary" @click="openChat(friend.friendId)">私聊</button>
+                <button class="friend-btn" @click="promptRemark(friend)">备注</button>
+                <button class="friend-btn" @click="openMoveDialog(friend)">移动</button>
+                <button class="friend-btn danger" @click="confirmDeleteFriend(friend)">删除</button>
+              </div>
             </div>
-            <el-table :data="friendStore.requestsPage.records" row-key="id">
-              <el-table-column label="申请人/接收人">
-                <template #default="{ row }">
-                  <span v-if="requestDirection === 'received'">{{ row.senderNickname || row.senderUsername }}</span>
-                  <span v-else>{{ row.receiverNickname || row.receiverUsername }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="message" label="申请备注" />
-              <el-table-column prop="status" label="状态" width="120" />
-              <el-table-column prop="createdAt" label="申请时间" width="180" />
-              <el-table-column v-if="requestDirection === 'received'" label="操作" width="180">
-                <template #default="{ row }">
-                  <el-button link :disabled="row.status !== 'PENDING'" @click="openAcceptDialog(row)">同意</el-button>
-                  <el-button link type="danger" :disabled="row.status !== 'PENDING'" @click="promptReject(row)">拒绝</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-pagination
-              layout="prev, pager, next, total"
-              :total="friendStore.requestsPage.total"
-              :current-page="friendStore.requestsPage.pageNo"
-              :page-size="friendStore.requestsPage.pageSize"
-              @current-change="loadRequests"
+          </div>
+          <div v-else class="tab-empty muted">暂无好友</div>
+
+          <el-pagination
+            v-if="friendStore.friendsPage.total > friendStore.friendsPage.pageSize"
+            layout="prev, pager, next"
+            :total="friendStore.friendsPage.total"
+            :current-page="friendStore.friendsPage.pageNo"
+            :page-size="friendStore.friendsPage.pageSize"
+            @current-change="loadFriends"
+            small
+          />
+        </div>
+
+        <!-- Search Tab -->
+        <div v-show="activeTab === 'search'" class="tab-content">
+          <div class="tab-toolbar">
+            <input
+              v-model="searchKeyword"
+              class="tab-search"
+              placeholder="搜索用户…"
+              @keyup.enter="searchUsers(1)"
             />
-          </el-tab-pane>
-        </el-tabs>
+            <button class="tab-action-btn" @click="searchUsers(1)">搜索</button>
+          </div>
+
+          <div class="friend-list" v-if="friendStore.searchPage.records.length">
+            <div
+              v-for="user in friendStore.searchPage.records"
+              :key="user.id"
+              class="friend-card"
+            >
+              <div class="friend-avatar" :style="friendAvatarStyle(user)">
+                {{ firstLetter(user.nickname || user.username) }}
+              </div>
+              <div class="friend-info">
+                <div class="friend-name">{{ user.nickname || user.username }}</div>
+                <div class="friend-meta">
+                  <span class="muted">@{{ user.username }}</span>
+                  <span class="relation-tag" :class="relationClass(user.relationStatus)">
+                    {{ relationText(user.relationStatus) }}
+                  </span>
+                </div>
+              </div>
+              <div class="friend-actions">
+                <button
+                  class="friend-btn primary"
+                  :disabled="user.relationStatus !== 'NONE'"
+                  @click="promptSendRequest(user)"
+                >添加好友</button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="tab-empty muted">搜索用户以添加好友</div>
+
+          <el-pagination
+            v-if="friendStore.searchPage.total > friendStore.searchPage.pageSize"
+            layout="prev, pager, next"
+            :total="friendStore.searchPage.total"
+            :current-page="friendStore.searchPage.pageNo"
+            :page-size="friendStore.searchPage.pageSize"
+            @current-change="searchUsers"
+            small
+          />
+        </div>
+
+        <!-- Requests Tab -->
+        <div v-show="activeTab === 'requests'" class="tab-content">
+          <div class="tab-toolbar">
+            <select v-model="requestDirection" class="tab-select" @change="loadRequests(1)">
+              <option value="received">收到的申请</option>
+              <option value="sent">发出的申请</option>
+            </select>
+            <select v-model="requestStatus" class="tab-select" @change="loadRequests(1)">
+              <option value="">全部状态</option>
+              <option value="PENDING">待处理</option>
+              <option value="ACCEPTED">已同意</option>
+              <option value="REJECTED">已拒绝</option>
+            </select>
+            <button class="tab-action-btn" @click="loadRequests(1)">刷新</button>
+          </div>
+
+          <div class="friend-list" v-if="friendStore.requestsPage.records.length">
+            <div
+              v-for="req in friendStore.requestsPage.records"
+              :key="req.id"
+              class="friend-card"
+            >
+              <div class="friend-avatar" :style="requestAvatarStyle(req)">
+                {{ firstLetter(requestDirection === 'received' ? (req.senderNickname || req.senderUsername) : (req.receiverNickname || req.receiverUsername)) }}
+              </div>
+              <div class="friend-info">
+                <div class="friend-name">
+                  {{ requestDirection === 'received' ? (req.senderNickname || req.senderUsername) : (req.receiverNickname || req.receiverUsername) }}
+                </div>
+                <div class="friend-meta">
+                  <span class="status-tag" :class="'status-' + req.status">{{ req.status }}</span>
+                  <span class="muted" v-if="req.message">{{ req.message }}</span>
+                </div>
+              </div>
+              <div class="friend-actions" v-if="requestDirection === 'received'">
+                <button class="friend-btn primary" :disabled="req.status !== 'PENDING'" @click="openAcceptDialog(req)">同意</button>
+                <button class="friend-btn danger" :disabled="req.status !== 'PENDING'" @click="promptReject(req)">拒绝</button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="tab-empty muted">暂无申请</div>
+
+          <el-pagination
+            v-if="friendStore.requestsPage.total > friendStore.requestsPage.pageSize"
+            layout="prev, pager, next"
+            :total="friendStore.requestsPage.total"
+            :current-page="friendStore.requestsPage.pageNo"
+            :page-size="friendStore.requestsPage.pageSize"
+            @current-change="loadRequests"
+            small
+          />
+        </div>
       </section>
-    </section>
+    </div>
 
-    <el-dialog v-model="moveDialog.visible" title="移动好友到分组" width="420px">
-      <el-select v-model="moveDialog.groupId" placeholder="选择分组" style="width: 100%">
-        <el-option v-for="group in friendStore.groups" :key="group.id" :label="group.name" :value="group.id" />
-      </el-select>
+    <!-- Move Dialog -->
+    <el-dialog v-model="moveDialog.visible" title="移动到分组" width="400px" align-center>
+      <select v-model="moveDialog.groupId" class="dialog-select">
+        <option v-for="group in friendStore.groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+      </select>
       <template #footer>
-        <el-button @click="moveDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="submitMoveFriend">确认移动</el-button>
+        <button class="dialog-btn cancel" @click="moveDialog.visible = false">取消</button>
+        <button class="dialog-btn confirm" @click="submitMoveFriend">确认移动</button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="acceptDialog.visible" title="同意好友申请" width="460px">
-      <el-form label-position="top">
-        <el-form-item label="放入分组">
-          <el-select v-model="acceptDialog.groupId" placeholder="默认分组" style="width: 100%">
-            <el-option v-for="group in friendStore.groups" :key="group.id" :label="group.name" :value="group.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="acceptDialog.remark" maxlength="50" show-word-limit placeholder="可选" />
-        </el-form-item>
-      </el-form>
+    <!-- Accept Dialog -->
+    <el-dialog v-model="acceptDialog.visible" title="同意好友申请" width="440px" align-center>
+      <div class="dialog-field">
+        <label class="dialog-label">放入分组</label>
+        <select v-model="acceptDialog.groupId" class="dialog-select">
+          <option v-for="group in friendStore.groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+        </select>
+      </div>
+      <div class="dialog-field">
+        <label class="dialog-label">备注</label>
+        <input v-model="acceptDialog.remark" class="dialog-input" maxlength="50" placeholder="可选" />
+      </div>
       <template #footer>
-        <el-button @click="acceptDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="submitAcceptRequest">同意</el-button>
+        <button class="dialog-btn cancel" @click="acceptDialog.visible = false">取消</button>
+        <button class="dialog-btn confirm" @click="submitAcceptRequest">同意</button>
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailDrawerVisible" title="好友详情" size="420px">
-      <el-descriptions v-if="friendStore.selectedFriend" :column="1" border>
-        <el-descriptions-item label="用户名">{{ friendStore.selectedFriend.username }}</el-descriptions-item>
-        <el-descriptions-item label="昵称">{{ friendStore.selectedFriend.nickname }}</el-descriptions-item>
-        <el-descriptions-item label="备注">{{ friendStore.selectedFriend.remark || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="分组">{{ friendStore.selectedFriend.groupName }}</el-descriptions-item>
-        <el-descriptions-item label="邮箱">{{ friendStore.selectedFriend.email || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ friendStore.selectedFriend.phone || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="成为好友">{{ friendStore.selectedFriend.friendSince }}</el-descriptions-item>
-        <el-descriptions-item label="最后登录">{{ friendStore.selectedFriend.lastLoginAt || '-' }}</el-descriptions-item>
-      </el-descriptions>
+    <!-- Detail Drawer -->
+    <el-drawer v-model="detailDrawerVisible" title="好友详情" size="400px">
+      <div v-if="friendStore.selectedFriend" class="detail-card">
+        <div class="detail-avatar" :style="friendAvatarStyle(friendStore.selectedFriend)">
+          {{ firstLetter(friendStore.selectedFriend.nickname || friendStore.selectedFriend.username) }}
+        </div>
+        <div class="detail-name">{{ friendStore.selectedFriend.nickname || friendStore.selectedFriend.username }}</div>
+        <div class="detail-username muted">@{{ friendStore.selectedFriend.username }}</div>
+
+        <div class="detail-fields">
+          <div class="detail-field">
+            <span class="detail-label">备注</span>
+            <span>{{ friendStore.selectedFriend.remark || '-' }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">分组</span>
+            <span>{{ friendStore.selectedFriend.groupName }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">邮箱</span>
+            <span>{{ friendStore.selectedFriend.email || '-' }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">手机号</span>
+            <span>{{ friendStore.selectedFriend.phone || '-' }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">好友时间</span>
+            <span>{{ friendStore.selectedFriend.friendSince }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">最后登录</span>
+            <span>{{ friendStore.selectedFriend.lastLoginAt || '-' }}</span>
+          </div>
+        </div>
+      </div>
     </el-drawer>
   </main>
 </template>
@@ -209,26 +295,22 @@ const router = useRouter()
 const authStore = useAuthStore()
 const friendStore = useFriendStore()
 
+const tabs = [
+  { key: 'friends', label: '好友列表' },
+  { key: 'search', label: '搜索用户' },
+  { key: 'requests', label: '好友申请' }
+]
+
 const activeTab = ref('friends')
 const activeGroupId = ref(null)
 const friendKeyword = ref('')
 const searchKeyword = ref('')
 const requestDirection = ref('received')
-const requestStatus = ref('PENDING')
+const requestStatus = ref('')
 const detailDrawerVisible = ref(false)
 
-const moveDialog = reactive({
-  visible: false,
-  friendId: null,
-  groupId: null
-})
-
-const acceptDialog = reactive({
-  visible: false,
-  requestId: null,
-  groupId: null,
-  remark: ''
-})
+const moveDialog = reactive({ visible: false, friendId: null, groupId: null })
+const acceptDialog = reactive({ visible: false, requestId: null, groupId: null, remark: '' })
 
 onMounted(async () => {
   await Promise.all([friendStore.loadGroups(), loadFriends(1), loadRequests(1)])
@@ -238,22 +320,42 @@ function firstLetter(value) {
   return value ? value.slice(0, 1).toUpperCase() : '?'
 }
 
-function relationText(status) {
-  const map = {
-    SELF: '自己',
-    FRIEND: '已是好友',
-    NONE: '可添加',
-    PENDING_SENT: '已发送申请',
-    PENDING_RECEIVED: '待你处理'
+function friendAvatarStyle(row) {
+  const name = row.nickname || row.username || '?'
+  const hue = (name.charCodeAt(0) || 65) * 137 % 360
+  return {
+    background: `linear-gradient(135deg, hsl(${hue}, 55%, 55%) 0%, hsl(${hue}, 60%, 42%) 100%)`,
+    boxShadow: `0 4px 14px hsla(${hue}, 55%, 50%, 0.3)`
   }
+}
+
+function requestAvatarStyle(req) {
+  const name = requestDirection.value === 'received'
+    ? (req.senderNickname || req.senderUsername || '?')
+    : (req.receiverNickname || req.receiverUsername || '?')
+  const hue = (name.charCodeAt(0) || 65) * 137 % 360
+  return {
+    background: `linear-gradient(135deg, hsl(${hue}, 45%, 55%) 0%, hsl(${hue}, 50%, 40%) 100%)`,
+    boxShadow: `0 4px 14px hsla(${hue}, 45%, 50%, 0.25)`
+  }
+}
+
+function relationText(status) {
+  const map = { SELF: '自己', FRIEND: '已是好友', NONE: '可添加', PENDING_SENT: '已发送申请', PENDING_RECEIVED: '待你处理' }
   return map[status] || status
 }
 
-function relationTagType(status) {
-  if (status === 'NONE') return 'success'
-  if (status === 'FRIEND') return 'info'
-  if (status?.startsWith('PENDING')) return 'warning'
+function relationClass(status) {
+  if (status === 'NONE') return 'rel-ok'
+  if (status === 'FRIEND') return 'rel-friend'
+  if (status?.startsWith('PENDING')) return 'rel-pending'
   return ''
+}
+
+async function switchTab(name) {
+  activeTab.value = name
+  if (name === 'search' && friendStore.searchPage.records.length === 0) await searchUsers(1)
+  if (name === 'requests') await loadRequests(1)
 }
 
 function selectGroup(groupId) {
@@ -262,78 +364,41 @@ function selectGroup(groupId) {
 }
 
 async function loadFriends(pageNo = 1) {
-  await friendStore.loadFriends({
-    pageNo,
-    pageSize: friendStore.friendsPage.pageSize,
-    groupId: activeGroupId.value || undefined,
-    keyword: friendKeyword.value || undefined
-  })
+  await friendStore.loadFriends({ pageNo, pageSize: friendStore.friendsPage.pageSize, groupId: activeGroupId.value || undefined, keyword: friendKeyword.value || undefined })
 }
 
 async function searchUsers(pageNo = 1) {
-  await friendStore.searchUsers({
-    pageNo,
-    pageSize: friendStore.searchPage.pageSize,
-    keyword: searchKeyword.value || undefined
-  })
+  await friendStore.searchUsers({ pageNo, pageSize: friendStore.searchPage.pageSize, keyword: searchKeyword.value || undefined })
 }
 
 async function loadRequests(pageNo = 1) {
-  await friendStore.loadRequests({
-    pageNo,
-    pageSize: friendStore.requestsPage.pageSize,
-    direction: requestDirection.value,
-    status: requestStatus.value || undefined
-  })
-}
-
-async function handleTabChange(name) {
-  if (name === 'search' && friendStore.searchPage.records.length === 0) {
-    await searchUsers(1)
-  }
-  if (name === 'requests') {
-    await loadRequests(1)
-  }
+  await friendStore.loadRequests({ pageNo, pageSize: friendStore.requestsPage.pageSize, direction: requestDirection.value, status: requestStatus.value || undefined })
 }
 
 async function promptCreateGroup() {
-  const { value } = await ElMessageBox.prompt('请输入分组名称', '创建分组', {
-    inputPattern: /^.{1,32}$/,
-    inputErrorMessage: '分组名称不能为空且不能超过32个字符'
-  })
+  const { value } = await ElMessageBox.prompt('请输入分组名称', '创建分组', { inputPattern: /^.{1,32}$/, inputErrorMessage: '分组名称不能为空且不能超过32个字符' })
   await friendStore.createGroup(value)
 }
 
 async function promptRenameGroup(group) {
-  const { value } = await ElMessageBox.prompt('请输入新的分组名称', '修改分组', {
-    inputValue: group.name,
-    inputPattern: /^.{1,32}$/,
-    inputErrorMessage: '分组名称不能为空且不能超过32个字符'
-  })
+  const { value } = await ElMessageBox.prompt('请输入新的分组名称', '修改分组', { inputValue: group.name, inputPattern: /^.{1,32}$/, inputErrorMessage: '分组名称不能为空且不能超过32个字符' })
   await friendStore.updateGroup(group.id, value)
 }
 
 async function confirmDeleteGroup(group) {
   await ElMessageBox.confirm(`删除分组「${group.name}」后，好友将移动到默认分组。`, '删除分组', { type: 'warning' })
   await friendStore.deleteGroup(group.id)
-  if (activeGroupId.value === group.id) {
-    activeGroupId.value = null
-  }
+  if (activeGroupId.value === group.id) activeGroupId.value = null
 }
 
 async function promptSendRequest(row) {
-  const { value } = await ElMessageBox.prompt(`向 ${row.nickname || row.username} 发送好友申请`, '添加好友', {
-    inputPlaceholder: '申请备注，可选'
-  })
+  const { value } = await ElMessageBox.prompt(`向 ${row.nickname || row.username} 发送好友申请`, '添加好友', { inputPlaceholder: '申请备注，可选' })
   await friendStore.sendRequest(row.id, value)
   await searchUsers(friendStore.searchPage.pageNo)
 }
 
 async function promptRemark(row) {
-  const { value } = await ElMessageBox.prompt('请输入好友备注', '修改备注', {
-    inputValue: row.remark || '',
-    inputPlaceholder: '最多50个字符'
-  })
+  const { value } = await ElMessageBox.prompt('请输入好友备注', '修改备注', { inputValue: row.remark || '', inputPlaceholder: '最多50个字符' })
   await friendStore.updateRemark(row.friendId, value)
 }
 
@@ -367,17 +432,12 @@ function openAcceptDialog(row) {
 }
 
 async function submitAcceptRequest() {
-  await friendStore.acceptRequest(acceptDialog.requestId, {
-    groupId: acceptDialog.groupId,
-    remark: acceptDialog.remark
-  })
+  await friendStore.acceptRequest(acceptDialog.requestId, { groupId: acceptDialog.groupId, remark: acceptDialog.remark })
   acceptDialog.visible = false
 }
 
 async function promptReject(row) {
-  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝好友申请', {
-    inputPlaceholder: '可选'
-  })
+  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝好友申请', { inputPlaceholder: '可选' })
   await friendStore.rejectRequest(row.id, value)
 }
 
@@ -392,73 +452,658 @@ function openChat(friendId) {
 </script>
 
 <style scoped>
-.side-panel {
-  min-height: 420px;
+/* ================================================
+   Shell
+   ================================================ */
+
+.friends-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+  min-height: 100vh;
+}
+
+/* ================================================
+   Header
+   ================================================ */
+
+.friends-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.friends-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.friends-brand-icon {
+  font-size: 28px;
+  color: var(--brand);
+  filter: drop-shadow(0 2px 8px var(--brand-glow));
+}
+
+.friends-brand-text {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.nav-logout {
+  background: none;
+  border: 1px solid var(--glass-border-3);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+  margin-left: 4px;
+}
+
+.nav-logout:hover {
+  background: var(--glass-3);
+  color: var(--text-primary);
+}
+
+/* ================================================
+   Layout
+   ================================================ */
+
+.friends-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  animation: springIn 0.5s var(--ease-spring-soft) both;
+}
+
+/* ================================================
+   Sidebar — Groups
+   ================================================ */
+
+.friends-sidebar {
+  background: var(--glass-1);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  position: sticky;
+  top: 20px;
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 680;
+}
+
+.sidebar-add {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-spring-soft);
+  box-shadow: 0 2px 6px var(--brand-glow);
+}
+
+.sidebar-add:hover {
+  background: var(--brand-hover);
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px var(--brand-glow);
+}
+
+.sidebar-groups {
+  display: grid;
+  gap: 6px;
 }
 
 .group-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-3);
+  border: 1px solid transparent;
   cursor: pointer;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-light);
-  -webkit-backdrop-filter: var(--blur-light);
-  transition: all var(--transition-smooth);
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
 }
 
 .group-card:hover {
-  border-color: rgba(7, 193, 96, 0.30);
-  background: var(--glass-bg-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  background: var(--glass-2);
+  border-color: var(--glass-border-3);
+  transform: translateX(2px);
 }
 
 .group-card.active {
-  border-color: var(--brand);
-  background: var(--brand-subtle);
-  box-shadow: 0 0 0 4px var(--brand-glow);
+  background: var(--brand-soft);
+  border-color: rgba(26, 173, 94, 0.2);
 }
 
-.group-row {
+.group-card-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-weight: 700;
-  font-size: 15px;
 }
 
-.group-row .el-tag {
+.group-card-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.group-card-count {
+  font-size: 11px;
   font-weight: 700;
+  color: var(--text-tertiary);
+  background: rgba(0,0,0,0.05);
+  padding: 2px 8px;
   border-radius: 999px;
 }
 
-.group-actions {
+.group-card-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 24px;
-  margin-top: 10px;
+  margin-top: 8px;
+}
+
+.group-default-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.04);
+}
+
+.group-action-btn {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+}
+
+.group-action-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-primary);
+}
+
+.group-action-btn.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ================================================
+   Main Panel
+   ================================================ */
+
+.friends-main {
+  background: var(--glass-1);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  min-height: 500px;
+}
+
+/* ================================================
+   Tab Pills
+   ================================================ */
+
+.main-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  margin: 16px 20px;
+  background: var(--glass-3);
+  border-radius: var(--radius-full);
+}
+
+.main-tab {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
+  font-family: inherit;
+}
+
+.main-tab.active {
+  background: var(--glass-1);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ================================================
+   Tab Content
+   ================================================ */
+
+.tab-content {
+  padding: 0 20px 20px;
+}
+
+.tab-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.tab-search {
+  flex: 1;
+  min-width: 160px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-3);
+  background: var(--glass-3);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+}
+
+.tab-search:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+.tab-select {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-3);
+  background: var(--glass-3);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.tab-action-btn {
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-spring-soft);
+  font-family: inherit;
+  box-shadow: 0 2px 6px var(--brand-glow);
+}
+
+.tab-action-btn:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 4px 14px var(--brand-glow);
+  transform: translateY(-1px);
+}
+
+.tab-empty {
+  text-align: center;
+  padding: 48px 0;
+  font-size: 14px;
+}
+
+/* ================================================
+   Friend Cards
+   ================================================ */
+
+.friend-list {
+  display: grid;
+  gap: 8px;
+}
+
+.friend-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--glass-3);
+  border: 1px solid transparent;
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
+}
+
+.friend-card:hover {
+  background: var(--glass-2);
+  border-color: var(--glass-border-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.friend-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.friend-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .friend-name {
-  margin-left: 10px;
-  margin-right: 8px;
-  font-weight: 700;
+  font-weight: 680;
+  font-size: 15px;
+  margin-bottom: 2px;
 }
+
+.friend-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.friend-group-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.relation-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.rel-ok { background: rgba(46,204,113,0.12); color: var(--success); }
+.rel-friend { background: rgba(0,0,0,0.04); color: var(--text-tertiary); }
+.rel-pending { background: rgba(240,160,48,0.12); color: var(--warning); }
+
+.status-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.status-PENDING { background: rgba(240,160,48,0.12); color: var(--warning); }
+.status-ACCEPTED { background: rgba(46,204,113,0.12); color: var(--success); }
+.status-REJECTED { background: rgba(232,64,64,0.08); color: var(--danger); }
+
+.friend-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.friend-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.04);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.friend-btn:hover:not(:disabled) {
+  background: rgba(0,0,0,0.08);
+  color: var(--text-primary);
+}
+
+.friend-btn.primary {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.friend-btn.primary:hover:not(:disabled) {
+  background: var(--brand);
+  color: #fff;
+}
+
+.friend-btn.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.friend-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ================================================
+   Dialogs
+   ================================================ */
+
+.dialog-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-3);
+  background: var(--glass-3);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.dialog-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-3);
+  background: var(--glass-3);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.dialog-field {
+  margin-bottom: 16px;
+}
+
+.dialog-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.dialog-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring-soft);
+  font-family: inherit;
+  margin-left: 8px;
+}
+
+.dialog-btn.cancel {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-secondary);
+}
+
+.dialog-btn.cancel:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+.dialog-btn.confirm {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 2px 6px var(--brand-glow);
+}
+
+.dialog-btn.confirm:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 4px 14px var(--brand-glow);
+}
+
+/* ================================================
+   Detail Drawer
+   ================================================ */
+
+.detail-card {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.detail-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 auto 16px;
+}
+
+.detail-name {
+  font-size: 22px;
+  font-weight: 780;
+  margin-bottom: 4px;
+}
+
+.detail-username {
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.detail-fields {
+  text-align: left;
+}
+
+.detail-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border-3);
+  font-size: 14px;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ================================================
+   Pagination
+   ================================================ */
 
 :deep(.el-pagination) {
-  justify-content: flex-end;
-  margin-top: 16px;
+  justify-content: center;
+  padding-top: 14px;
 }
 
-:deep(.el-table__body tr:last-child td) {
-  border-bottom: none;
-}
+/* ================================================
+   Responsive
+   ================================================ */
 
 @media (max-width: 860px) {
-  .side-panel {
-    min-height: auto;
+  .friends-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .friends-sidebar {
+    position: static;
+    padding: 16px;
+  }
+
+  .sidebar-groups {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .friend-card {
+    flex-wrap: wrap;
+  }
+
+  .friend-actions {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: 62px;
+  }
+
+  .friend-avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .friends-shell {
+    padding: 10px 8px 20px;
+  }
+
+  .friends-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .main-tabs {
+    margin: 12px 12px;
+  }
+
+  .tab-content {
+    padding: 0 12px 16px;
   }
 }
 </style>

@@ -1,22 +1,55 @@
 <template>
-  <div class="chat-box">
-    <div class="chat-header">群聊 - {{ groupName }}</div>
+  <div class="group-shell">
+    <!-- Header -->
+    <header class="group-topbar">
+      <button class="back-btn" @click="$router.push('/friends')">
+        <span>←</span>
+      </button>
+      <div class="group-header-info">
+        <div class="group-name">{{ groupName }}</div>
+        <div class="group-label muted">群聊</div>
+      </div>
+      <div class="group-header-spacer"></div>
+    </header>
 
-    <div class="chat-body" ref="bodyRef">
+    <!-- Messages -->
+    <div class="group-messages" ref="bodyRef">
       <div
         v-for="(m, i) in messages"
         :key="i"
-        :class="['msg-row', Number(m.userId) === myId ? 'mine' : 'other']"
+        :class="['msg-row', Number(m.userId) === myId ? 'self' : 'other']"
       >
-        <span class="avatar">{{ String(m.userId).slice(-2) }}</span>
-        <div class="bubble">{{ m.content }}</div>
+        <div v-if="Number(m.userId) !== myId" class="msg-avatar" :style="memberAvatarStyle(m.userId)">
+          {{ String(m.userId).slice(-2) }}
+        </div>
+
+        <div class="msg-card">
+          <div class="msg-sender" v-if="Number(m.userId) !== myId">
+            {{ String(m.userId).slice(-2) }}
+          </div>
+          <div class="msg-text">{{ m.content }}</div>
+        </div>
+
+        <div v-if="Number(m.userId) === myId" class="msg-avatar self-avatar">
+          {{ String(myId).slice(-2) }}
+        </div>
       </div>
     </div>
 
-    <div class="chat-input">
-      <input v-model="text" @keyup.enter="send" placeholder="输入群消息…" />
-      <button @click="send">发送</button>
-    </div>
+    <!-- Input -->
+    <footer class="group-input-bar">
+      <div class="group-input-wrapper">
+        <input
+          v-model="text"
+          class="group-input"
+          placeholder="输入群消息…"
+          @keyup.enter="send"
+        />
+        <button class="group-send-btn" :class="{ ready: text.trim() }" :disabled="!text.trim()" @click="send">
+          <span>↑</span>
+        </button>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -37,6 +70,16 @@ const myId = authStore.user?.id || 0
 const text = ref('')
 const messages = ref([])
 const bodyRef = ref(null)
+
+const avatarColors = ['#5E6AD2', '#FF8C42', '#00A8CC', '#1aad5e', '#E84040', '#8C52D2', '#F0A030', '#4A90D9']
+
+function memberAvatarStyle(userId) {
+  const color = avatarColors[Number(userId) % avatarColors.length]
+  return {
+    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+    boxShadow: `0 3px 12px ${color}40`
+  }
+}
 
 function handleMessage(data) {
   if (data.type === 'group_message' && String(data.groupId) === String(props.groupId)) {
@@ -65,7 +108,6 @@ async function send() {
   try {
     await sendGroupMessage(payload)
   } catch (e) {
-    // 接口失败也本地回显，避免丢失消息体验
     console.warn('群消息发送HTTP失败，仅本地回显', e)
   }
   messages.value.push({
@@ -88,188 +130,282 @@ function scrollBottom() {
 </script>
 
 <style scoped>
-.chat-box {
+.group-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  font-family: inherit;
-  background:
-    radial-gradient(ellipse 65% 45% at 20% 10%, rgba(7, 193, 96, 0.15),  transparent 50%),
-    radial-gradient(ellipse 55% 50% at 80% 15%, rgba(255, 107, 53, 0.10), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 60% 85%, rgba(0, 122, 255, 0.10),  transparent 50%),
-    linear-gradient(175deg, #f5f5f7 0%, #efeff4 35%, #e8e8ed 100%);
 }
 
-/* Glass header */
-.chat-header {
-  padding: 16px 24px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-heavy);
-  -webkit-backdrop-filter: var(--blur-heavy);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink);
+/* ================================================
+   Header
+   ================================================ */
+
+.group-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 12px 16px 0;
+  flex-shrink: 0;
+  background: var(--glass-1);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+}
+
+.back-btn {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: var(--glass-3);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  color: var(--text-secondary);
   font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  z-index: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  flex-shrink: 0;
 }
 
-/* Message area */
-.chat-body {
+.back-btn:hover {
+  background: var(--glass-2);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.group-header-info {
+  min-width: 0;
+}
+
+.group-name {
+  font-weight: 680;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.group-label {
+  font-size: 12px;
+}
+
+.group-header-spacer {
+  width: 38px;
+  flex-shrink: 0;
+}
+
+/* ================================================
+   Messages
+   ================================================ */
+
+.group-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.15);
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .msg-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  animation: msgIn 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+  gap: 10px;
+  animation: messageIn 0.4s var(--ease-spring-soft) both;
 }
 
-@keyframes msgIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.msg-row.self { justify-content: flex-end; }
+.msg-row.other { justify-content: flex-start; }
 
-.msg-row.mine {
-  flex-direction: row-reverse;
-}
-
-/* Gradient avatars */
-.avatar {
-  width: 40px;
-  height: 40px;
+.msg-avatar {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px var(--brand-glow);
+  margin-bottom: 2px;
 }
 
-.msg-row.mine .avatar {
-  background: linear-gradient(135deg, var(--accent) 0%, #e85d2a 100%);
-  box-shadow: 0 2px 8px var(--accent-glow);
+.self-avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 10px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-active) 100%) !important;
+  box-shadow: 0 2px 8px var(--brand-glow) !important;
 }
 
-/* Glass chat bubbles — shrink to content, cap long messages */
-.bubble {
+/* ================================================
+   Message Card
+   ================================================ */
+
+.msg-card {
+  display: inline-flex;
+  flex-direction: column;
   width: fit-content;
-  max-width: 60%;
-  padding: 8px 14px;
-  border-radius: 18px;
-  background: var(--glass-bg-hover);
-  backdrop-filter: var(--blur-light);
-  -webkit-backdrop-filter: var(--blur-light);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-xs);
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 15px;
-  line-height: 1.45;
-  transition: all var(--transition-fast);
+  max-width: 68%;
+  padding: 9px 15px;
+  border-radius: 24px;
+  background: var(--glass-2);
+  backdrop-filter: var(--blur-lg);
+  -webkit-backdrop-filter: var(--blur-lg);
+  border: 1px solid var(--glass-border-3);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-normal) var(--ease-spring-soft);
 }
 
-.bubble:hover {
+.msg-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
-.msg-row.mine .bubble {
-  background: rgba(7, 193, 96, 0.14);
-  border-color: rgba(7, 193, 96, 0.22);
+.msg-row.other .msg-card {
+  border-bottom-left-radius: 8px;
+  background: var(--glass-1);
 }
 
-/* Glass input bar */
-.chat-input {
+.msg-row.self .msg-card {
+  border-bottom-right-radius: 8px;
+  background: rgba(26, 173, 94, 0.13);
+  border-color: rgba(26, 173, 94, 0.18);
+}
+
+.msg-sender {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.msg-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+/* ================================================
+   Input
+   ================================================ */
+
+.group-input-bar {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  margin: 0 12px 12px;
+}
+
+.group-input-wrapper {
   display: flex;
+  align-items: center;
   gap: 10px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--line);
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-heavy);
-  -webkit-backdrop-filter: var(--blur-heavy);
+  padding: 6px 6px 6px 18px;
+  background: var(--glass-1);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--duration-normal) var(--ease-out-expo);
 }
 
-.chat-input input {
+.group-input-wrapper:focus-within {
+  border-color: rgba(26, 173, 94, 0.3);
+  box-shadow: 0 0 0 3px var(--brand-glow), var(--shadow-md);
+}
+
+.group-input {
   flex: 1;
-  padding: 11px 18px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-subtle);
-  -webkit-backdrop-filter: var(--blur-subtle);
+  border: none;
   outline: none;
+  background: transparent;
   font-size: 15px;
   font-family: inherit;
-  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  padding: 8px 0;
 }
 
-.chat-input input:focus {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-glow);
+.group-input::placeholder {
+  color: var(--text-tertiary);
 }
 
-.chat-input input::placeholder {
-  color: var(--muted);
-}
-
-.chat-input button {
-  padding: 11px 28px;
+.group-send-btn {
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 14px;
+  border-radius: 50%;
+  background: var(--glass-3);
+  color: var(--text-tertiary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
+  font-family: inherit;
+}
+
+.group-send-btn.ready {
   background: var(--brand);
   color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--transition-spring);
-  box-shadow: 0 2px 10px var(--brand-glow);
+  box-shadow: 0 2px 8px var(--brand-glow);
 }
 
-.chat-input button:hover {
-  background: var(--brand-light);
-  box-shadow: 0 6px 22px var(--brand-glow);
-  transform: translateY(-1px);
+.group-send-btn.ready:hover {
+  background: var(--brand-hover);
+  box-shadow: 0 6px 20px var(--brand-glow);
+  transform: scale(1.08);
 }
 
-.chat-input button:active {
-  transform: scale(0.96);
+.group-send-btn:active {
+  transform: scale(0.92);
 }
+
+/* Scrollbar */
+.group-messages::-webkit-scrollbar { width: 3px; }
+.group-messages::-webkit-scrollbar-track { background: transparent; }
+.group-messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 999px; }
+.group-messages::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.15); }
+
+/* ================================================
+   Responsive
+   ================================================ */
 
 @media (max-width: 640px) {
-  .chat-body {
-    padding: 8px 12px;
-    gap: 3px;
+  .group-topbar {
+    margin: 8px 8px 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
   }
 
-  .chat-input {
-    padding: 12px 16px;
-    gap: 8px;
+  .group-messages {
+    padding: 10px 10px;
+    gap: 5px;
   }
 
-  .bubble {
+  .msg-card {
     max-width: 82%;
-    padding: 7px 12px;
-    font-size: 14px;
-    border-radius: 14px;
+    padding: 8px 13px;
+    border-radius: 22px;
   }
 
-  .avatar {
-    width: 34px;
-    height: 34px;
-    font-size: 11px;
+  .msg-row.other .msg-card { border-bottom-left-radius: 6px; }
+  .msg-row.self .msg-card { border-bottom-right-radius: 6px; }
+
+  .group-input-bar {
+    margin: 0 6px 6px;
+    padding: 8px 10px 10px;
   }
 }
 </style>

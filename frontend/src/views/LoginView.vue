@@ -1,49 +1,126 @@
 <template>
   <main class="login-shell">
-    <section class="login-hero">
-      <p class="eyebrow">Online Chat System</p>
-      <h1>把好友、申请和会话列表整理成可维护的工作台</h1>
-      <p>登录后可搜索用户、发送好友申请、管理分组，并查看最近会话与未读数量。</p>
+    <!-- Theme toggle — top right -->
+    <div class="login-theme">
+      <div class="theme-toggle">
+        <button
+          v-for="m in themeModes"
+          :key="m.key"
+          :class="['theme-toggle-btn', { active: theme === m.key }]"
+          :title="m.label"
+          @click="setTheme(m.key)"
+        >{{ m.icon }}</button>
+      </div>
+    </div>
+
+    <!-- Brand -->
+    <div class="login-brand">
+      <div class="brand-icon">◇</div>
+      <div class="brand-label">Online Chat</div>
+    </div>
+
+    <!-- Floating glass card -->
+    <section class="login-card glass-highlight">
+      <!-- Tab pills -->
+      <div class="login-tabs">
+        <button
+          :class="['login-tab', { active: mode === 'login' }]"
+          @click="mode = 'login'"
+        >登录</button>
+        <button
+          :class="['login-tab', { active: mode === 'register' }]"
+          @click="mode = 'register'"
+        >注册</button>
+      </div>
+
+      <!-- Error -->
+      <div v-if="errorMsg" class="login-error">
+        <span>{{ errorMsg }}</span>
+        <button class="error-close" @click="errorMsg = ''">×</button>
+      </div>
+
+      <!-- Login Form -->
+      <form v-if="mode === 'login'" @submit.prevent="submitLogin" class="login-form">
+        <div class="field">
+          <label class="field-label">用户名</label>
+          <input
+            v-model="loginForm.username"
+            class="field-input"
+            placeholder="输入用户名"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label">密码</label>
+          <input
+            v-model="loginForm.password"
+            class="field-input"
+            type="password"
+            placeholder="输入密码"
+            @keyup.enter="submitLogin"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <button type="submit" class="login-submit" :disabled="submitting">
+          {{ submitting ? '登录中…' : '登录' }}
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form v-else @submit.prevent="submitRegister" class="login-form">
+        <div class="field">
+          <label class="field-label">用户名</label>
+          <input
+            v-model="registerForm.username"
+            class="field-input"
+            placeholder="4-32位字母、数字、下划线"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label">昵称</label>
+          <input
+            v-model="registerForm.nickname"
+            class="field-input"
+            placeholder="展示昵称"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label">邮箱</label>
+          <input
+            v-model="registerForm.email"
+            class="field-input"
+            placeholder="name@example.com"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label">手机号</label>
+          <input
+            v-model="registerForm.phone"
+            class="field-input"
+            placeholder="可选"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label">密码</label>
+          <input
+            v-model="registerForm.password"
+            class="field-input"
+            type="password"
+            placeholder="至少6位"
+            @input="errorMsg = ''"
+          />
+        </div>
+        <button type="submit" class="login-submit" :disabled="submitting">
+          {{ submitting ? '注册中…' : '注册并登录' }}
+        </button>
+      </form>
     </section>
 
-    <section class="login-panel glass-card">
-      <el-tabs v-model="mode" stretch>
-        <el-tab-pane label="登录" name="login">
-          <el-alert v-if="loginError" :title="loginError" type="error" show-icon closable @close="loginError = ''" style="margin-bottom: 16px" />
-          <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef" label-position="top" @submit.prevent>
-            <el-form-item label="用户名" prop="username">
-              <el-input v-model="loginForm.username" placeholder="alice" @input="loginError = ''" />
-            </el-form-item>
-            <el-form-item label="密码" prop="password">
-              <el-input v-model="loginForm.password" type="password" show-password placeholder="123456" @keyup.enter="submitLogin" @input="loginError = ''" />
-            </el-form-item>
-            <el-button type="primary" :loading="submitting" class="full-button" @click="submitLogin">登录</el-button>
-          </el-form>
-        </el-tab-pane>
-
-        <el-tab-pane label="注册" name="register">
-          <el-alert v-if="registerError" :title="registerError" type="error" show-icon closable @close="registerError = ''" style="margin-bottom: 16px" />
-          <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-position="top" @submit.prevent>
-            <el-form-item label="用户名" prop="username">
-              <el-input v-model="registerForm.username" placeholder="4-32位字母、数字、下划线" @input="registerError = ''" />
-            </el-form-item>
-            <el-form-item label="昵称" prop="nickname">
-              <el-input v-model="registerForm.nickname" placeholder="展示昵称" @input="registerError = ''" />
-            </el-form-item>
-            <el-form-item label="邮箱" prop="email">
-              <el-input v-model="registerForm.email" placeholder="name@example.com" @input="registerError = ''" />
-            </el-form-item>
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="registerForm.phone" placeholder="可选" @input="registerError = ''" />
-            </el-form-item>
-            <el-form-item label="密码" prop="password">
-              <el-input v-model="registerForm.password" type="password" show-password placeholder="至少6位" @input="registerError = ''" />
-            </el-form-item>
-            <el-button type="primary" :loading="submitting" class="full-button" @click="submitRegister">注册并登录</el-button>
-          </el-form>
-        </el-tab-pane>
-      </el-tabs>
-    </section>
+    <p class="login-footer muted">安全连接 · 端到端加密</p>
   </main>
 </template>
 
@@ -52,15 +129,15 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { theme, setTheme, modes: themeModes } = useTheme()
+
 const mode = ref('login')
 const submitting = ref(false)
-const loginFormRef = ref()
-const registerFormRef = ref()
-const loginError = ref('')
-const registerError = ref('')
+const errorMsg = ref('')
 
 const loginForm = reactive({
   username: '',
@@ -75,21 +152,6 @@ const registerForm = reactive({
   password: ''
 })
 
-const loginRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
-
-const registerRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { pattern: /^[a-zA-Z0-9_]{4,32}$/, message: '用户名只能包含字母、数字、下划线，长度4-32位', trigger: 'blur' }
-  ],
-  nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
-  email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
-  password: [{ required: true, min: 6, message: '密码至少6位', trigger: 'blur' }]
-}
-
 function resolveError(err) {
   if (err?.response) {
     const status = err.response.status
@@ -101,14 +163,13 @@ function resolveError(err) {
   if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
     return '无法连接服务器，请确认后端服务已启动 (localhost:8080)'
   }
-  return err?.message || '登录失败，请重试'
+  return err?.message || '操作失败，请重试'
 }
 
 async function submitLogin() {
-  loginError.value = ''
-  try {
-    await loginFormRef.value.validate()
-  } catch {
+  errorMsg.value = ''
+  if (!loginForm.username.trim() || !loginForm.password) {
+    errorMsg.value = '请填写用户名和密码'
     return
   }
   submitting.value = true
@@ -117,17 +178,29 @@ async function submitLogin() {
     ElMessage.success('登录成功')
     router.push('/friends')
   } catch (err) {
-    loginError.value = resolveError(err)
+    errorMsg.value = resolveError(err)
   } finally {
     submitting.value = false
   }
 }
 
 async function submitRegister() {
-  registerError.value = ''
-  try {
-    await registerFormRef.value.validate()
-  } catch {
+  errorMsg.value = ''
+  if (!registerForm.username.trim() || !registerForm.password || !registerForm.nickname.trim()) {
+    errorMsg.value = '请填写用户名、昵称和密码'
+    return
+  }
+  const usernameRule = /^[a-zA-Z0-9_]{4,32}$/
+  if (!usernameRule.test(registerForm.username)) {
+    errorMsg.value = '用户名只能包含字母、数字、下划线，长度4-32位'
+    return
+  }
+  if (registerForm.password.length < 6) {
+    errorMsg.value = '密码至少6位'
+    return
+  }
+  if (registerForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) {
+    errorMsg.value = '邮箱格式不正确'
     return
   }
   submitting.value = true
@@ -136,7 +209,7 @@ async function submitRegister() {
     ElMessage.success('注册成功')
     router.push('/friends')
   } catch (err) {
-    registerError.value = resolveError(err)
+    errorMsg.value = resolveError(err)
   } finally {
     submitting.value = false
   }
@@ -144,175 +217,283 @@ async function submitRegister() {
 </script>
 
 <style scoped>
+/* ================================================
+   Login Shell — centered, immersive
+   ================================================ */
+
 .login-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 56px;
-  align-items: center;
   min-height: 100vh;
-  padding: 48px 60px;
-}
-
-.login-hero {
-  max-width: 760px;
-  animation: heroFadeIn 0.8s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-@keyframes heroFadeIn {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.eyebrow {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  color: var(--brand);
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  justify-content: center;
+  padding: 40px 24px;
 }
 
-.eyebrow::before {
-  content: "";
-  width: 9px;
-  height: 9px;
+/* ================================================
+   Theme Toggle — top right
+   ================================================ */
+
+.login-theme {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+.theme-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--glass-2);
+  backdrop-filter: var(--blur-lg);
+  -webkit-backdrop-filter: var(--blur-lg);
+  border: 1px solid var(--glass-border-3);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
   border-radius: 50%;
-  background: var(--brand);
-  box-shadow: 0 0 12px var(--brand-glow);
-  animation: dotPulse 2s ease-in-out infinite;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  color: var(--text-tertiary);
 }
 
-@keyframes dotPulse {
-  0%, 100% { box-shadow: 0 0 8px var(--brand-glow); }
-  50% { box-shadow: 0 0 18px var(--brand-glow), 0 0 32px var(--brand-glow); }
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
 }
 
-.login-hero h1 {
-  margin: 22px 0;
-  font-size: clamp(44px, 7vw, 76px);
-  font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.05em;
+.theme-toggle-btn.active {
+  background: var(--glass-1);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
 }
 
-.login-hero p:last-child {
-  max-width: 520px;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1.7;
+/* ================================================
+   Brand
+   ================================================ */
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 36px;
 }
 
-/* Liquid glass login panel — low opacity, heavy blur, edge highlight */
-.login-panel {
-  position: relative;
-  padding: 36px 32px 30px;
-  border-radius: 34px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-heavy);
-  -webkit-backdrop-filter: var(--blur-heavy);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-xl);
-  overflow: hidden;
-  animation: panelFadeIn 0.6s 0.15s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-/* Glass edge reflection */
-.login-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.18) 35%,
-    transparent 60%
-  );
-}
-
-.login-panel > * {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes panelFadeIn {
-  from { opacity: 0; transform: translateY(30px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.login-panel :deep(.el-tabs__header) {
-  margin-bottom: 22px;
-}
-
-.login-panel :deep(.el-tabs__item) {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.login-panel :deep(.el-tabs__item.is-active) {
+.brand-icon {
+  font-size: 48px;
   color: var(--brand);
-  font-weight: 800;
+  margin-bottom: 12px;
+  animation: springIn 0.6s var(--ease-spring) both;
+  filter: drop-shadow(0 4px 12px var(--brand-glow));
 }
 
-.login-panel :deep(.el-tabs__active-bar) {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--brand);
-}
-
-.login-panel :deep(.el-form-item__label) {
-  font-weight: 600;
+.brand-label {
   font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.full-button {
-  width: 100%;
-  margin-top: 6px;
-  height: 46px;
-  font-size: 16px;
   font-weight: 700;
-  border-radius: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  animation: springIn 0.6s 0.1s var(--ease-spring) both;
+}
+
+/* ================================================
+   Login Card — floating glass
+   ================================================ */
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 36px 32px 30px;
+  background: var(--glass-1);
+  backdrop-filter: var(--blur-xl);
+  -webkit-backdrop-filter: var(--blur-xl);
+  border: 1px solid var(--glass-border-2);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  animation: springIn 0.55s 0.15s var(--ease-spring-soft) both;
+}
+
+/* ================================================
+   Tab Pills
+   ================================================ */
+
+.login-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--glass-3);
+  border-radius: var(--radius-full);
+  margin-bottom: 28px;
+}
+
+.login-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
+  font-family: inherit;
+}
+
+.login-tab.active {
+  background: var(--glass-1);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ================================================
+   Error
+   ================================================ */
+
+.login-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  background: var(--danger-soft);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideDown 0.25s var(--ease-out-expo) both;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+
+.error-close:hover { opacity: 1; }
+
+/* ================================================
+   Form Fields
+   ================================================ */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-left: 4px;
+}
+
+.field-input {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border-3);
+  background: var(--glass-3);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+}
+
+.field-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.field-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+/* ================================================
+   Submit Button — iOS style
+   ================================================ */
+
+.login-submit {
+  margin-top: 6px;
+  padding: 13px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-spring-smooth);
+  font-family: inherit;
   letter-spacing: 0.02em;
-  transition: all var(--transition-spring);
+  box-shadow: 0 2px 8px var(--brand-glow);
 }
 
-.full-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px var(--brand-glow);
+.login-submit:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: 0 8px 24px var(--brand-glow);
+  transform: translateY(-1px);
 }
 
-.full-button:active {
+.login-submit:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-@media (max-width: 960px) {
-  .login-shell {
-    grid-template-columns: 1fr;
-    gap: 36px;
-    padding: 32px 24px;
-    align-content: center;
-  }
-
-  .login-hero h1 {
-    font-size: clamp(34px, 9vw, 56px);
-  }
+.login-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
+
+/* ================================================
+   Footer
+   ================================================ */
+
+.login-footer {
+  margin-top: 28px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  animation: springIn 0.6s 0.25s var(--ease-spring) both;
+}
+
+/* ================================================
+   Responsive
+   ================================================ */
 
 @media (max-width: 480px) {
   .login-shell {
-    padding: 18px;
-    gap: 22px;
+    padding: 20px 16px;
   }
 
-  .login-panel {
-    padding: 26px 18px 20px;
-    border-radius: 26px;
+  .login-card {
+    padding: 28px 20px 24px;
+    border-radius: var(--radius-lg);
+  }
+
+  .brand-icon {
+    font-size: 38px;
   }
 }
 </style>

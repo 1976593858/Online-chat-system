@@ -1,0 +1,282 @@
+/* ================================================
+   Premium Animation System
+   Spring physics × micro-interactions × smooth easings
+   Inspired by: Framer, Linear, Arc, Apple
+   ================================================ */
+
+/* === Aurora Background Flow === */
+@keyframes auroraFlow {
+  0% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  20% {
+    transform: translate(2%, -1.5%) scale(1.02);
+  }
+  40% {
+    transform: translate(-1%, 1%) scale(0.98);
+  }
+  60% {
+    transform: translate(1.5%, 0.5%) scale(1.01);
+  }
+  80% {
+    transform: translate(-2%, -0.5%) scale(0.99);
+  }
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+}
+
+@keyframes auroraFlowSlow {
+  0% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  33% {
+    transform: translate(-2%, 1%) scale(1.03);
+  }
+  66% {
+    transform: translate(1.5%, -1%) scale(0.98);
+  }
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+}
+
+@keyframes auroraPulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* === Glass reflection sweep (subtle diagonal light movement) === */
+@keyframes glassSweep {
+  0% {
+    background-position: -200% -200%;
+  }
+  100% {
+    background-position: 200% 200%;
+  }
+}
+
+/* === Spring Scale In — used for cards, dialogs, panels === */
+@keyframes springIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
+  }
+  80% {
+    transform: scale(0.99) translateY(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* === Spring Scale Out === */
+@keyframes springOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(8px);
+  }
+}
+
+/* === Message In — bubbles appear from below with spring === */
+@keyframes messageIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  75% {
+    transform: translateY(1px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Message In (self) — mirror for right-aligned === */
+@keyframes messageInSelf {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  75% {
+    transform: translateY(1px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Avatar Pulse — subtle breathing for online indicator === */
+@keyframes avatarBreathe {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(26, 173, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(26, 173, 94, 0);
+  }
+}
+
+/* === Fade In — premium, used for page transitions === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* === Slide Up — content appearing === */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === Slide Down (subtle, for dropdowns) === */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Scale In (for modals, overlays) === */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* === Shimmer — loading skeleton === */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* === Hover Float — cards lifting on hover === */
+@keyframes hoverFloat {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+/* === Ring Pulse — for incoming call === */
+@keyframes ringPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(26, 173, 94, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 20px rgba(26, 173, 94, 0);
+  }
+}
+
+/* ================================================
+   Utility animation classes
+   ================================================ */
+
+.anim-spring-in {
+  animation: springIn 0.55s var(--ease-spring) both;
+}
+
+.anim-message-in {
+  animation: messageIn 0.45s var(--ease-spring-soft) both;
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.3s var(--ease-out-expo) both;
+}
+
+.anim-slide-up {
+  animation: slideUp 0.45s var(--ease-spring-smooth) both;
+}
+
+.anim-scale-in {
+  animation: scaleIn 0.35s var(--ease-spring-soft) both;
+}
+
+/* Stagger delays for lists */
+.anim-stagger-1 { animation-delay: 0.03s; }
+.anim-stagger-2 { animation-delay: 0.06s; }
+.anim-stagger-3 { animation-delay: 0.09s; }
+.anim-stagger-4 { animation-delay: 0.12s; }
+.anim-stagger-5 { animation-delay: 0.15s; }
+.anim-stagger-6 { animation-delay: 0.18s; }
+.anim-stagger-7 { animation-delay: 0.21s; }
+.anim-stagger-8 { animation-delay: 0.24s; }
+.anim-stagger-9 { animation-delay: 0.27s; }
+.anim-stagger-10 { animation-delay: 0.30s; }
+
+/* ================================================
+   View Transitions
+   ================================================ */
+
+.view-enter-active {
+  animation: springIn 0.5s var(--ease-spring-soft) both;
+}
+
+.view-leave-active {
+  animation: springOut 0.25s var(--ease-out-expo) both;
+  position: absolute;
+  width: 100%;
+}
+
+/* ================================================
+   Reduced motion
+   ================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

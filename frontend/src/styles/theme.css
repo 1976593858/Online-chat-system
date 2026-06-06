@@ -1,0 +1,299 @@
+/* ================================================
+   Aurora Design System — Premium Chat Tokens
+   Apple × Telegram × Arc Browser aesthetic
+   ================================================ */
+
+:root {
+  /* === Background === */
+  --bg-base: #f2f1f6;
+  --bg-elevated: #fafafa;
+
+  /* === Glass Surfaces — key to the floating effect === */
+  --glass-1: rgba(255, 255, 255, 0.52);   /* Primary glass — panels, cards */
+  --glass-2: rgba(255, 255, 255, 0.34);   /* Secondary glass — hover states */
+  --glass-3: rgba(255, 255, 255, 0.20);   /* Subtle glass — inputs, tags */
+  --glass-solid: rgba(255, 255, 255, 0.72); /* Solid glass — modals, dialogs */
+
+  /* === Glass Borders === */
+  --glass-border-1: rgba(255, 255, 255, 0.60);
+  --glass-border-2: rgba(255, 255, 255, 0.35);
+  --glass-border-3: rgba(0, 0, 0, 0.06);
+
+  /* === Brand — muted WeChat green, sophisticated === */
+  --brand: #1aad5e;
+  --brand-hover: #22c56d;
+  --brand-active: #15944e;
+  --brand-soft: rgba(26, 173, 94, 0.12);
+  --brand-glow: rgba(26, 173, 94, 0.24);
+
+  /* === Accent — blue-purple ambient === */
+  --accent-blue: #5E6AD2;
+  --accent-blue-soft: rgba(94, 106, 210, 0.10);
+  --accent-cyan: #00A8CC;
+  --accent-cyan-soft: rgba(0, 168, 204, 0.08);
+  --accent-warm: #FF8C42;
+  --accent-warm-soft: rgba(255, 140, 66, 0.09);
+
+  /* === Semantic === */
+  --danger: #E84040;
+  --danger-soft: rgba(232, 64, 64, 0.10);
+  --success: #2ECC71;
+  --success-soft: rgba(46, 204, 113, 0.10);
+  --warning: #F0A030;
+  --warning-soft: rgba(240, 160, 48, 0.10);
+  --info: #4A90D9;
+  --info-soft: rgba(74, 144, 217, 0.10);
+
+  /* === Text — Apple-style dark, never pure black === */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #aeaeb2;
+  --text-inverse: #ffffff;
+
+  /* === Shadows — multi-layered, soft, organic === */
+  --shadow-ambient: 0 0 1px rgba(0,0,0,0.04);
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.02);
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.03);
+  --shadow-md: 0 8px 28px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.09), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-xl: 0 24px 72px rgba(0,0,0,0.11), 0 8px 24px rgba(0,0,0,0.05);
+  --shadow-avatar: 0 4px 16px rgba(0,0,0,0.10), 0 0 0 3px rgba(255,255,255,0.8);
+
+  /* === Blur — progressive, sells depth === */
+  --blur-xl: saturate(200%) blur(48px);
+  --blur-lg: saturate(180%) blur(32px);
+  --blur-md: saturate(160%) blur(20px);
+  --blur-sm: saturate(140%) blur(10px);
+  --blur-xs: saturate(120%) blur(4px);
+
+  /* === Radius === */
+  --radius-2xs: 6px;
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --radius-2xl: 44px;
+  --radius-full: 9999px;
+
+  /* === Typography Scale === */
+  --font-sans: -apple-system, "SF Pro Text", "SF Pro Display",
+               "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
+               sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  --weight-normal: 400;
+  --weight-medium: 510;
+  --weight-semibold: 590;
+  --weight-bold: 680;
+  --weight-heavy: 780;
+
+  --tracking-tight: -0.04em;
+  --tracking-normal: -0.01em;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.06em;
+
+  /* === Spacing === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* === Transitions === */
+  --ease-spring: cubic-bezier(0.22, 1.28, 0.38, 1.12);
+  --ease-spring-soft: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --ease-spring-smooth: cubic-bezier(0.4, 1.3, 0.45, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-premium: cubic-bezier(0.42, 0, 0.2, 1);
+
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-glacial: 800ms;
+
+  /* === Layout === */
+  --sidebar-width: 280px;
+  --header-height: 64px;
+  --input-bar-height: 72px;
+
+  /* === Aurora colors (for background animation) === */
+  --aurora-green: rgba(26, 173, 94, 0.16);
+  --aurora-blue: rgba(94, 106, 210, 0.12);
+  --aurora-cyan: rgba(0, 168, 204, 0.10);
+  --aurora-warm: rgba(255, 140, 66, 0.08);
+  --aurora-purple: rgba(140, 82, 210, 0.07);
+
+  /* === Element Plus override tokens === */
+  --el-color-primary: var(--brand);
+  --el-color-primary-light-3: rgba(26, 173, 94, 0.30);
+  --el-color-primary-light-5: rgba(26, 173, 94, 0.16);
+  --el-color-primary-light-7: rgba(26, 173, 94, 0.07);
+  --el-color-primary-light-9: rgba(26, 173, 94, 0.03);
+  --el-color-success: var(--success);
+  --el-color-warning: var(--warning);
+  --el-color-danger: var(--danger);
+  --el-color-info: var(--info);
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 999px;
+
+  /* === Typography defaults === */
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ================================================
+   Dark Mode — macOS Dark × Telegram Dark × Arc Dark
+   Deep, not black. Glass glows in the dark.
+   ================================================ */
+
+[data-theme="dark"] {
+  --bg-base: #0d0d12;
+  --bg-elevated: #15151c;
+
+  --glass-1: rgba(255, 255, 255, 0.07);
+  --glass-2: rgba(255, 255, 255, 0.05);
+  --glass-3: rgba(255, 255, 255, 0.03);
+  --glass-solid: rgba(30, 30, 42, 0.85);
+
+  --glass-border-1: rgba(255, 255, 255, 0.10);
+  --glass-border-2: rgba(255, 255, 255, 0.06);
+  --glass-border-3: rgba(255, 255, 255, 0.04);
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #98989d;
+  --text-tertiary: #5c5c63;
+
+  --shadow-ambient: 0 0 1px rgba(255,255,255,0.03);
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-md: 0 8px 28px rgba(0,0,0,0.35);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
+  --shadow-xl: 0 24px 72px rgba(0,0,0,0.45);
+  --shadow-avatar: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.08);
+
+  --brand: #34c759;
+  --brand-hover: #48d96d;
+  --brand-active: #2db34a;
+  --brand-soft: rgba(52, 199, 89, 0.14);
+  --brand-glow: rgba(52, 199, 89, 0.22);
+
+  --aurora-green: rgba(52, 199, 89, 0.10);
+  --aurora-blue: rgba(94, 106, 210, 0.08);
+  --aurora-cyan: rgba(0, 168, 204, 0.06);
+  --aurora-warm: rgba(255, 140, 66, 0.05);
+  --aurora-purple: rgba(140, 82, 210, 0.06);
+
+  --el-color-primary: var(--brand);
+  --el-color-primary-light-3: rgba(52, 199, 89, 0.28);
+  --el-color-primary-light-5: rgba(52, 199, 89, 0.15);
+  --el-color-primary-light-7: rgba(52, 199, 89, 0.07);
+  --el-color-primary-light-9: rgba(52, 199, 89, 0.03);
+}
+
+/* ================================================
+   Auto Mode — follows system preference
+   ================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base: #0d0d12;
+    --bg-elevated: #15151c;
+
+    --glass-1: rgba(255, 255, 255, 0.07);
+    --glass-2: rgba(255, 255, 255, 0.05);
+    --glass-3: rgba(255, 255, 255, 0.03);
+    --glass-solid: rgba(30, 30, 42, 0.85);
+
+    --glass-border-1: rgba(255, 255, 255, 0.10);
+    --glass-border-2: rgba(255, 255, 255, 0.06);
+    --glass-border-3: rgba(255, 255, 255, 0.04);
+
+    --text-primary: #f5f5f7;
+    --text-secondary: #98989d;
+    --text-tertiary: #5c5c63;
+
+    --shadow-ambient: 0 0 1px rgba(255,255,255,0.03);
+    --shadow-xs: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-sm: 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 28px rgba(0,0,0,0.35);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
+    --shadow-xl: 0 24px 72px rgba(0,0,0,0.45);
+    --shadow-avatar: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.08);
+
+    --brand: #34c759;
+    --brand-hover: #48d96d;
+    --brand-active: #2db34a;
+    --brand-soft: rgba(52, 199, 89, 0.14);
+    --brand-glow: rgba(52, 199, 89, 0.22);
+
+    --aurora-green: rgba(52, 199, 89, 0.10);
+    --aurora-blue: rgba(94, 106, 210, 0.08);
+    --aurora-cyan: rgba(0, 168, 204, 0.06);
+    --aurora-warm: rgba(255, 140, 66, 0.05);
+    --aurora-purple: rgba(140, 82, 210, 0.06);
+
+    --el-color-primary: var(--brand);
+    --el-color-primary-light-3: rgba(52, 199, 89, 0.28);
+    --el-color-primary-light-5: rgba(52, 199, 89, 0.15);
+    --el-color-primary-light-7: rgba(52, 199, 89, 0.07);
+    --el-color-primary-light-9: rgba(52, 199, 89, 0.03);
+  }
+}
+
+/* ================================================
+   Backwards compatibility aliases
+   (old views reference these names)
+   ================================================ */
+
+:root {
+  --ink: var(--text-primary);
+  --ink-soft: var(--text-secondary);
+  --muted: var(--text-tertiary);
+  --line: var(--glass-border-3);
+  --line-strong: rgba(0, 0, 0, 0.10);
+
+  --glass-bg: var(--glass-1);
+  --glass-bg-hover: var(--glass-2);
+  --glass-bg-solid: var(--glass-solid);
+  --glass-border: var(--glass-border-1);
+  --glass-border-strong: var(--glass-border-2);
+
+  --brand-light: var(--brand-hover);
+  --brand-strong: var(--brand-active);
+  --brand-subtle: var(--brand-soft);
+
+  --accent: #FF8C42;
+  --accent-glow: rgba(255, 140, 66, 0.20);
+
+  --blur-heavy: var(--blur-xl);
+  --blur-glass: var(--blur-lg);
+  --blur-light: var(--blur-md);
+  --blur-subtle: var(--blur-sm);
+
+  --radius-xs: var(--radius-2xs);
+  --radius-full: var(--radius-full);
+
+  --transition-fast: var(--duration-fast) var(--ease-in-out-premium);
+  --transition-smooth: var(--duration-normal) var(--ease-out-expo);
+  --transition-spring: var(--duration-slow) var(--ease-spring);
+}
