@@ -93,11 +93,19 @@ public class GroupChatWebSocket {
      * Used for group voice call announcements.
      */
     public static void broadcastAll(String groupId, String jsonMsg) {
+        broadcastAllExcept(groupId, jsonMsg, null);
+    }
+
+    /**
+     * Broadcast to all online group members except the specified user.
+     */
+    public static void broadcastAllExcept(String groupId, String jsonMsg, String excludeUserId) {
         ONLINE_USERS.forEach((uid, session) -> {
             if (!session.isOpen()) {
                 ONLINE_USERS.remove(uid);
                 return;
             }
+            if (uid.equals(excludeUserId)) return;
             if (!isUserInGroup(uid, groupId)) return;
             try {
                 session.getBasicRemote().sendText(jsonMsg);
@@ -153,8 +161,8 @@ public class GroupChatWebSocket {
                 String groupId = msg.getString("groupId");
                 String callRoomId = msg.getString("callRoomId");
                 msg.put("fromUserId", userId);
-                // Broadcast call start to all online group members (ignoring mute — calls override mute)
-                broadcastAll(groupId, msg.toJSONString());
+                // Broadcast to all online group members EXCEPT the initiator
+                broadcastAllExcept(groupId, msg.toJSONString(), userId);
                 log.info("群语音通话发起 groupId={} callRoomId={} by={}", groupId, callRoomId, userId);
                 return;
             }
@@ -191,8 +199,8 @@ public class GroupChatWebSocket {
             if ("group_call_leave".equals(type) || "group_call_end".equals(type)) {
                 String groupId = msg.getString("groupId");
                 msg.put("fromUserId", userId);
-                // Notify all online members in the group
-                broadcastAll(groupId, msg.toJSONString());
+                // Notify all online members except the sender
+                broadcastAllExcept(groupId, msg.toJSONString(), userId);
                 return;
             }
 

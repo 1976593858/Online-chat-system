@@ -449,6 +449,8 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   // ============================================================
 
   function handleGroupCallStart(data) {
+    // Ignore self-broadcast (backend should filter, but guard here too)
+    if (String(data.fromUserId || '') === myId()) return
     if (groupCallState.value !== 'idle' || callState.value !== 'idle') {
       // Busy — silently reject
       wsStore.send({ type: 'group_call_reject', fromUserId: myId(), toUserId: data.fromUserId, callRoomId: data.callRoomId })
