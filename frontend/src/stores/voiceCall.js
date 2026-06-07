@@ -422,6 +422,12 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
       if (pc.connectionState === 'connected') {
         const p = groupCallParticipants.value.find(p => p.userId === uid)
         if (p) p.state = 'connected'
+        // Transition initiator to connected when first peer joins
+        if (groupCallState.value === 'calling' && groupCallInitiator.value === myId()) {
+          groupCallState.value = 'connected'
+          clearGroupAnswerTimeout()
+          startTimer()
+        }
       } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
         removeGroupParticipant(uid)
       }
@@ -474,11 +480,20 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   function handleGroupCallAccept(data) {
     if (groupCallState.value !== 'calling' || groupCallInitiator.value !== myId()) return
     const uid = String(data.fromUserId || '')
+    // Add participant if not already in list
+    if (!groupCallParticipants.value.find(p => p.userId === uid)) {
+      groupCallParticipants.value.push({
+        userId: uid,
+        username: data.fromUsername || ('用户 ' + uid),
+        state: 'connecting'
+      })
+    } else {
+      const p = groupCallParticipants.value.find(p => p.userId === uid)
+      if (p) p.state = 'connecting'
+    }
     if (!groupPeerConnections.has(uid)) {
       createGroupPeerConnection(uid)
     }
-    const p = groupCallParticipants.value.find(p => p.userId === uid)
-    if (p) p.state = 'connecting'
   }
 
   function handleGroupCallReject(data) {
@@ -535,6 +550,9 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
           startTimer()
           const p = groupCallParticipants.value.find(p => p.userId === uid)
           if (p) p.state = 'connected'
+          // Also update own participant entry
+          const self = groupCallParticipants.value.find(p => p.userId === myId())
+          if (self) self.state = 'connected'
         } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           stopGroupCall('连接断开')
         }
@@ -602,8 +620,22 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
 
   function acceptGroupCall() {
     if (groupCallState.value !== 'ringing') return
-    clearGroupRingingTimeout()
+    clearGroupAnswerTimeout()
     groupCallState.value = 'calling' // waiting for initiator's WebRTC offer
+    // Add self to participants
+    if (!groupCallParticipants.value.find(p => p.userId === myId())) {
+      groupCallParticipants.value.push({
+        userId: myId(),
+        username: myName(),
+        state: 'connecting'
+      })
+    }
+    // Fallback timeout in case initiator's offer never arrives
+    groupAnswerTimeout = setTimeout(() => {
+      if (groupCallState.value === 'calling' && groupCallInitiator.value !== myId()) {
+        stopGroupCall('连接超时')
+      }
+    }, ANSWER_TIMEOUT_MS)
     wsStore.send({
       type: 'group_call_accept',
       fromUserId: myId(),
@@ -614,15 +646,19 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
   }
 
   function rejectGroupCall() {
-    if (groupCallState.value !== 'ringing') return
-    clearGroupRingingTimeout()
-    wsStore.send({
-      type: 'group_call_reject',
-      fromUserId: myId(),
-      toUserId: groupCallInitiator.value,
-      callRoomId: groupCallRoomId.value
-    })
-    resetGroupCall()
+    if (groupCallState.value === 'ringing') {
+      clearGroupAnswerTimeout()
+      wsStore.send({
+        type: 'group_call_reject',
+        fromUserId: myId(),
+        toUserId: groupCallInitiator.value,
+        callRoomId: groupCallRoomId.value
+      })
+      resetGroupCall()
+    } else if (groupCallState.value === 'calling' && groupCallInitiator.value !== myId()) {
+      // Already accepted, cancel by leaving
+      leaveGroupCall()
+    }
   }
 
   function leaveGroupCall() {
