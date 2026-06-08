@@ -3,7 +3,7 @@ let handlers = []
 let reconnectTimer = null
 let currentUserId = null
 
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080'
+const WS_BASE = import.meta.env.VITE_WS_BASE_URL || ''
 
 export function connectWS(userId) {
   if (ws && ws.readyState === WebSocket.OPEN && currentUserId === userId) {
