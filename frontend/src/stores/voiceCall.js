@@ -28,6 +28,14 @@ const ICE_SERVERS = {
 
 const ANSWER_TIMEOUT_MS = 30000
 
+function getMedia() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    ElMessage.error('语音通话需要 HTTPS 或 localhost 环境，当前页面为 HTTP，浏览器禁止访问麦克风')
+    return Promise.reject(new Error('需要安全上下文'))
+  }
+  return getMedia()
+}
+
 export const useVoiceCallStore = defineStore('voiceCall', () => {
   const authStore = useAuthStore()
   const wsStore = useWebSocketStore()
@@ -213,7 +221,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
       setupSignaling()
       callState.value = 'calling'
 
-      localStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
+      localStream = await getMedia()
       peerConnection = new RTCPeerConnection(ICE_SERVERS)
 
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream))
@@ -267,7 +275,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     try {
       callState.value = 'calling'
 
-      localStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
+      localStream = await getMedia()
       peerConnection = new RTCPeerConnection(ICE_SERVERS)
 
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream))
@@ -522,7 +530,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     const uid = String(data.fromUserId || '')
     try {
       if (!groupLocalStream) {
-        groupLocalStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
+        groupLocalStream = await getMedia()
       }
       const pc = new RTCPeerConnection(ICE_SERVERS)
       groupPeerConnections.set(uid, pc)
@@ -599,7 +607,7 @@ export const useVoiceCallStore = defineStore('voiceCall', () => {
     groupCallError.value = ''
 
     try {
-      groupLocalStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS)
+      groupLocalStream = await getMedia()
 
       // Broadcast invitation — do NOT create peer connections yet
       wsStore.send({

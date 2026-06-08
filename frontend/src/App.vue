@@ -11,6 +11,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from './stores/auth'
 import { useWebSocketStore } from './stores/websocket'
 import { useFriendStore } from './stores/friend'
@@ -27,11 +28,19 @@ const voiceCallStore = useVoiceCallStore()
 // routed through it once the WS connection is established.
 voiceCallStore.setupSignaling()
 
+// Global handler for group invites — notify regardless of current page
+function handleGlobalInvite(data) {
+  if (data.type === 'group_invite' && data.action === 'invited') {
+    ElMessage.info(`你被邀请加入群聊 "${data.groupName}"，前往群聊页面查看`)
+  }
+}
+
 onMounted(() => {
   if (authStore.token) {
     wsStore.connect()
     friendStore.initWSListener()
   }
+  wsStore.addHandler(handleGlobalInvite)
 })
 
 // When the user logs in AFTER App has already mounted

@@ -65,9 +65,14 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
+                "http://129.204.17.109",      // 公网 IP（无端口，http 默认80）
+                "http://129.204.17.109:*",    // 公网 IP（带任意端口）
                 "ws://localhost:*",
-                "ws://127.0.0.1:*"
+                "ws://127.0.0.1:*",
+                "ws://129.204.17.109",        // 公网 IP WebSocket（无端口）
+                "ws://129.204.17.109:*"       // 公网 IP WebSocket（带任意端口）
         ));
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));

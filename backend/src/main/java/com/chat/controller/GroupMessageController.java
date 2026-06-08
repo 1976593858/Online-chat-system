@@ -15,15 +15,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import javax.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/group")
@@ -38,7 +35,12 @@ public class GroupMessageController {
     @Operation(summary = "发送群消息", description = "消息入库后通过 WebSocket 向群内所有在线成员广播")
     public Result<Void> send(@Valid @RequestBody SendMessageDTO body) {
         Long userId = currentUser.id();
-        Long groupId = Long.valueOf(body.getGroupId());
+        Long groupId;
+        try {
+            groupId = Long.valueOf(body.getGroupId());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "群ID格式错误");
+        }
 
         // Verify membership
         if (!groupMemberMapper.isMember(groupId, userId)) {

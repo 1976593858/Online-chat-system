@@ -134,11 +134,13 @@ CREATE TABLE group_info (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '群ID',
     name VARCHAR(64) NOT NULL COMMENT '群名称',
     announcement VARCHAR(500) NULL COMMENT '群公告',
+    invite_code VARCHAR(8) NULL COMMENT '8位随机邀请码',
     owner_id BIGINT UNSIGNED NOT NULL COMMENT '群主用户ID',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删除，1已删除',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_group_invite_code (invite_code),
     KEY idx_group_info_owner (owner_id, deleted),
     CONSTRAINT fk_group_info_owner FOREIGN KEY (owner_id) REFERENCES `user` (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='群组信息表';
@@ -148,6 +150,7 @@ CREATE TABLE group_member (
     group_id BIGINT UNSIGNED NOT NULL COMMENT '群ID',
     user_id BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
     role VARCHAR(16) NOT NULL DEFAULT 'MEMBER' COMMENT '角色：OWNER、ADMIN、MEMBER',
+    muted TINYINT NOT NULL DEFAULT 0 COMMENT '是否免打扰：1是，0否',
     joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -173,3 +176,20 @@ CREATE TABLE group_message (
     CONSTRAINT fk_group_message_group FOREIGN KEY (group_id) REFERENCES group_info (id),
     CONSTRAINT fk_group_message_from_user FOREIGN KEY (from_user_id) REFERENCES `user` (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='群消息表';
+
+CREATE TABLE group_invite (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '邀请ID',
+    group_id BIGINT UNSIGNED NOT NULL COMMENT '群ID',
+    sender_id BIGINT UNSIGNED NOT NULL COMMENT '邀请人ID',
+    invitee_id BIGINT UNSIGNED NOT NULL COMMENT '被邀请人ID',
+    status VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING、ACCEPTED、REJECTED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删除，1已删除',
+    PRIMARY KEY (id),
+    KEY idx_group_invite_invitee_status (invitee_id, status, deleted),
+    KEY idx_group_invite_group (group_id, status, deleted),
+    CONSTRAINT fk_group_invite_group FOREIGN KEY (group_id) REFERENCES group_info (id),
+    CONSTRAINT fk_group_invite_sender FOREIGN KEY (sender_id) REFERENCES `user` (id),
+    CONSTRAINT fk_group_invite_invitee FOREIGN KEY (invitee_id) REFERENCES `user` (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='群邀请表';

@@ -154,10 +154,11 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../../stores/auth'
+import { useWebSocketStore } from '../../stores/websocket'
 import {
   createGroup, joinGroup, listGroups, getGroupPreview,
   joinByInviteCode, getPendingInvites, acceptInvite, rejectInvite
@@ -165,6 +166,7 @@ import {
 
 const router = useRouter()
 const authStore = useAuthStore()
+const wsStore = useWebSocketStore()
 
 const groups = ref([])
 const loading = ref(false)
@@ -300,9 +302,21 @@ async function handleReject(inviteId) {
   }
 }
 
+function handleWsInvite(data) {
+  if (data.type === 'group_invite' && data.action === 'invited') {
+    ElMessage.info(`你被邀请加入群聊 "${data.groupName}"`)
+    loadPendingInvites()
+  }
+}
+
 onMounted(() => {
   loadGroups()
   loadPendingInvites()
+  wsStore.addHandler(handleWsInvite)
+})
+
+onUnmounted(() => {
+  wsStore.removeHandler(handleWsInvite)
 })
 </script>
 

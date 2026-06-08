@@ -27,6 +27,9 @@
         <button class="action-btn primary" @click="startGroupVoiceCall" title="群语音通话">
           <span>📞</span>
         </button>
+        <button class="action-btn" @click="showInviteDialog = true" title="邀请入群">
+          <span>📩</span>
+        </button>
         <button class="action-btn" :class="{ active: showMembers }" @click="showMembers = !showMembers" title="群成员">
           <span>👥</span>
         </button>
@@ -81,12 +84,6 @@
               <span v-if="member.role === 'OWNER'" class="member-role owner">群主</span>
               <span v-else-if="member.role === 'ADMIN'" class="member-role admin">管理员</span>
             </div>
-            <button
-              v-if="String(member.userId) !== String(myId)"
-              class="invite-member-btn"
-              title="邀请入群"
-              @click="inviteMemberById(member.userId)"
-            >+</button>
           </div>
         </div>
       </aside>
@@ -111,21 +108,47 @@
       </div>
     </footer>
 
-    <!-- Invite dialog -->
-    <div v-if="showInviteDialog" class="dialog-overlay" @click.self="showInviteDialog = false">
+    <!-- Invite dialog with user search -->
+    <div v-if="showInviteDialog" class="dialog-overlay" @click.self="closeInviteDialog">
       <div class="dialog-card glass-highlight">
-        <h3 class="dialog-title">邀请好友入群</h3>
+        <h3 class="dialog-title">邀请用户入群</h3>
         <input
-          v-model="inviteUserId"
+          v-model="inviteSearchKeyword"
           class="dialog-input"
-          placeholder="输入好友 ID"
-          @keyup.enter="doInvite"
+          placeholder="输入用户名或昵称搜索"
+          maxlength="64"
+          @input="onInviteSearchInput"
+          @keyup.enter="doInviteSearch"
         />
+        <div v-if="searchingUsers" class="search-hint muted">搜索中…</div>
+        <div class="search-results" v-else-if="searchResults.length">
+          <div
+            v-for="user in searchResults"
+            :key="user.id"
+            class="search-result-item"
+          >
+            <div class="search-result-avatar" :style="memberAvatarById(user.id)">
+              {{ firstLetter(user.nickname || user.username) }}
+            </div>
+            <div class="search-result-info">
+              <span class="search-result-name">{{ user.nickname || user.username }}</span>
+              <span class="search-result-username muted">@{{ user.username }}</span>
+            </div>
+            <button
+              class="primary-btn"
+              :disabled="invitingUserIds.has(user.id)"
+              @click="doInviteUser(user)"
+            >
+              {{ invitingUserIds.has(user.id) ? '邀请中…' : '邀请' }}
+            </button>
+          </div>
+        </div>
+        <div v-else-if="inviteSearchKeyword.trim() && !searchingUsers" class="search-hint muted">
+          未找到用户
+        </div>
+        <div v-else class="search-hint muted">输入关键词搜索用户</div>
         <div class="dialog-actions">
-          <button class="secondary-btn" @click="showInviteDialog = false">取消</button>
-          <button class="primary-btn" :disabled="!inviteUserId.trim() || inviting" @click="doInvite">
-            {{ inviting ? '邀请中…' : '邀请' }}
-          </button>
+          <button class="secondary-btn" @click="closeInviteDialog">关闭</button>
         </div>
       </div>
     </div>
@@ -143,6 +166,7 @@ import {
   getGroupDetail, getGroupMembers, getGroupMessages, sendGroupMessage,
   inviteToGroup, toggleMuteGroup
 } from '../../api/groups'
+import { searchUsers } from '../../api/users'
 
 const props = defineProps({
   groupId: { type: String, required: true }
@@ -180,8 +204,63 @@ const avatarColors = ['#5E6AD2', '#FF8C42', '#00A8CC', '#1aad5e', '#E84040', '#8
 
 // Invite dialog
 const showInviteDialog = ref(false)
-const inviteUserId = ref('')
-const inviting = ref(false)
+const inviteSearchKeyword = ref('')
+const searchingUsers = ref(false)
+const searchResults = ref([])
+const invitingUserIds = ref(new Set())
+let inviteSearchTimer = null
+
+function closeInviteDialog() {
+  showInviteDialog.value = false
+  inviteSearchKeyword.value = ''
+  searchResults.value = []
+  invitingUserIds.value = new Set()
+}
+
+function onInviteSearchInput() {
+  if (inviteSearchTimer) clearTimeout(inviteSearchTimer)
+  inviteSearchTimer = setTimeout(() => doInviteSearch(), 400)
+}
+
+async function doInviteSearch() {
+  const keyword = inviteSearchKeyword.value.trim()
+  if (!keyword) {
+    searchResults.value = []
+    return
+  }
+  searchingUsers.value = true
+  try {
+    const page = await searchUsers({ keyword, pageNo: 1, pageSize: 20 })
+    // Filter out self and existing members
+    const memberIds = new Set(members.value.map(m => Number(m.userId)))
+    searchResults.value = (page.records || []).filter(
+      u => Number(u.id) !== myId.value && !memberIds.has(Number(u.id))
+    )
+  } catch {
+    searchResults.value = []
+  } finally {
+    searchingUsers.value = false
+  }
+}
+
+async function doInviteUser(user) {
+  const userId = Number(user.id)
+  const s = new Set(invitingUserIds.value)
+  s.add(userId)
+  invitingUserIds.value = s
+  try {
+    await inviteToGroup(Number(props.groupId), { inviteeId: userId })
+    ElMessage.success(`已向 ${user.nickname || user.username} 发送邀请`)
+    // Remove user from search results
+    searchResults.value = searchResults.value.filter(u => Number(u.id) !== userId)
+  } catch (e) {
+    ElMessage.error(e?.message || '邀请失败')
+  } finally {
+    const s2 = new Set(invitingUserIds.value)
+    s2.delete(userId)
+    invitingUserIds.value = s2
+  }
+}
 
 function firstLetter(value) {
   return value ? String(value).slice(0, 1).toUpperCase() : '?'
@@ -286,26 +365,34 @@ async function loadMembers() {
 }
 
 async function loadFirstPage() {
-  pageNo.value = 1
-  const page = await loadPage(pageNo.value)
-  pages.value = page.pages
-  messages.value = page.records.slice().reverse()
-  for (const m of messages.value) {
-    msgIds.value.add(m.id || (m.userId + '_' + m.timestamp))
+  try {
+    pageNo.value = 1
+    const page = await loadPage(pageNo.value)
+    pages.value = page.pages
+    messages.value = page.records.slice().reverse()
+    for (const m of messages.value) {
+      msgIds.value.add(m.id || (m.userId + '_' + m.timestamp))
+    }
+    await scrollToBottom()
+  } catch {
+    // error already shown by interceptor
   }
-  await scrollToBottom()
 }
 
 async function loadMore() {
   if (!hasMore.value || loading.value) return
-  pageNo.value += 1
-  const page = await loadPage(pageNo.value)
-  pages.value = page.pages
-  const older = page.records.slice().reverse()
-  for (const m of older) {
-    if (msgIds.value.has(m.id || (m.userId + '_' + m.timestamp))) continue
-    msgIds.value.add(m.id || (m.userId + '_' + m.timestamp))
-    messages.value.unshift(m)
+  try {
+    pageNo.value += 1
+    const page = await loadPage(pageNo.value)
+    pages.value = page.pages
+    const older = page.records.slice().reverse()
+    for (const m of older) {
+      if (msgIds.value.has(m.id || (m.userId + '_' + m.timestamp))) continue
+      msgIds.value.add(m.id || (m.userId + '_' + m.timestamp))
+      messages.value.unshift(m)
+    }
+  } catch {
+    pageNo.value -= 1
   }
 }
 
@@ -356,27 +443,6 @@ function startGroupVoiceCall() {
   voiceCallStore.startGroupCall(props.groupId, groupName.value)
 }
 
-// Member invite
-function inviteMemberById(userId) {
-  inviteUserId.value = String(userId)
-  showInviteDialog.value = true
-}
-
-async function doInvite() {
-  const id = inviteUserId.value.trim()
-  if (!id) return
-  inviting.value = true
-  try {
-    await inviteToGroup(Number(props.groupId), { inviteeId: Number(id) })
-    ElMessage.success('邀请已发送')
-    showInviteDialog.value = false
-    inviteUserId.value = ''
-  } catch (e) {
-    ElMessage.error(e?.message || '邀请失败')
-  } finally {
-    inviting.value = false
-  }
-}
 </script>
 
 <style scoped>
@@ -1041,5 +1107,61 @@ async function doInvite() {
   .member-sidebar {
     width: 200px;
   }
+}
+
+/* ================================================
+   Search Results (in invite dialog)
+   ================================================ */
+
+.search-hint {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 13px;
+}
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-out-expo);
+}
+.search-result-item:hover {
+  background: var(--glass-3);
+}
+.search-result-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.search-result-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.search-result-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.search-result-username {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 </style>

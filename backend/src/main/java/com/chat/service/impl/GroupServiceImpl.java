@@ -185,6 +185,9 @@ public class GroupServiceImpl implements GroupService {
                     .eq(GroupMember::getGroupId, groupId)
                     .eq(GroupMember::getUserId, successor.getUserId())
                     .last("LIMIT 1"));
+            if (successorMember == null) {
+                throw new BusinessException(ResultCode.INTERNAL_ERROR, "转让群主失败：找不到继任成员记录");
+            }
             successorMember.setRole("OWNER");
             groupMemberMapper.updateById(successorMember);
             GroupInfo group = groupInfoMapper.selectById(groupId);
